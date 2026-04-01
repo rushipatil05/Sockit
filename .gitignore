@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+server/downloads/
+server/uploads/
+client/.vite/
+.DS_Store

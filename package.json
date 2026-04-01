@@ -1,0 +1,20 @@
+{
+    "name": "socket-share",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+        "client",
+        "server",
+        "electron"
+    ],
+    "scripts": {
+        "dev": "concurrently -n server,client,electron -c cyan,green,magenta \"npm:dev -w server\" \"npm:dev -w client\" \"npm:dev -w electron\"",
+        "build": "npm run build -w server --if-present && npm run build -w client --if-present && npm run build -w electron --if-present",
+        "lint": "npm run lint -w server && npm run lint -w client",
+        "start": "npm run start -w electron"
+    },
+    "devDependencies": {
+        "concurrently": "^9.0.1",
+        "wait-on": "^8.0.1"
+    }
+}

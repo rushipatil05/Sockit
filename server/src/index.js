@@ -1,0 +1,133 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import express from "express";
+import cors from "cors";
+import { createServer } from "node:http";
+import { Server } from "socket.io";
+import { v4 as uuidv4 } from "uuid";
+import { config } from "./config.js";
+import { connectMongo } from "./db.js";
+import { DiscoveryService } from "./services/discoveryService.js";
+import { FileIndexService } from "./services/fileIndexService.js";
+import { PeerRegistry } from "./services/peerRegistry.js";
+import { PeerNetworkService } from "./services/peerNetworkService.js";
+import { TransferService } from "./services/transferService.js";
+import { createApiRouter } from "./routes/api.js";
+import { Events, Roles } from "../../shared/peerProtocol.js";
+
+const peerId = process.env.PEER_ID || uuidv4();
+const selfPeer = {
+    peerId,
+    peerName: config.peerName,
+    socketPort: config.socketPort,
+    serverPort: config.serverPort
+};
+
+await connectMongo();
+
+const app = express();
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*"
+    }
+});
+
+const peerRegistry = new PeerRegistry();
+const fileIndexService = new FileIndexService({
+    peerId: selfPeer.peerId,
+    peerName: selfPeer.peerName
+});
+
+const sharedDir = path.resolve(process.cwd(), config.sharedFilesDir);
+const downloadDir = path.resolve(process.cwd(), config.downloadDir);
+await fs.mkdir(sharedDir, { recursive: true });
+await fs.mkdir(downloadDir, { recursive: true });
+
+const peerNetworkService = new PeerNetworkService({
+    selfPeer,
+    io,
+    fileIndexService,
+    peerRegistry,
+    onUiUpdate: emitUiSnapshot
+});
+
+const transferService = new TransferService({
+    fileIndexService,
+    peerNetworkService,
+    io,
+    downloadDir
+});
+
+const discovery = new DiscoveryService({
+    config,
+    selfPeer,
+    onPeerSeen: async (peer) => {
+        const wasNew = !peerRegistry.get(peer.peerId);
+        peerRegistry.upsert(peer);
+        if (wasNew || !peerNetworkService.getSocketByPeerId(peer.peerId)) {
+            await peerNetworkService.connectToPeer(peer);
+        }
+        emitUiSnapshot();
+    },
+    onPeerLeft: async (peerLeavingId) => {
+        peerRegistry.markOffline(peerLeavingId);
+        await fileIndexService.removeRemotePeerFiles(peerLeavingId);
+        emitUiSnapshot();
+    }
+});
+
+app.use(cors());
+app.use(express.json({ limit: "10mb" }));
+
+app.use(
+    "/api",
+    createApiRouter({
+        peerRegistry,
+        fileIndexService,
+        transferService,
+        peerNetworkService
+    })
+);
+
+app.use((error, _req, res, _next) => {
+    res.status(500).json({ error: error.message || "Unexpected server error" });
+});
+
+io.on("connection", (socket) => {
+    const role = socket.handshake.auth?.role;
+
+    if (role === Roles.PEER) {
+        peerNetworkService.wireIncomingPeerSocketHandlers(socket);
+    }
+
+    if (role === Roles.UI) {
+        emitUiSnapshot();
+    }
+});
+
+function emitUiSnapshot() {
+    io.emit(Events.PEER_STATE, {
+        selfPeer,
+        peers: peerRegistry.list()
+    });
+}
+
+httpServer.listen(config.socketPort, () => {
+    console.log(`[socket] listening on ${config.socketPort}`);
+});
+
+app.listen(config.serverPort, () => {
+    console.log(`[api] listening on ${config.serverPort}`);
+    discovery.start();
+});
+
+const shutdown = async () => {
+    await peerNetworkService.broadcastPeerOffline(selfPeer.peerId);
+    discovery.stop();
+    process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

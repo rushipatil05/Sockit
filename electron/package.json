@@ -1,0 +1,15 @@
+{
+    "name": "socket-share-electron",
+    "version": "1.0.0",
+    "private": true,
+    "main": "main.js",
+    "scripts": {
+        "dev": "wait-on tcp:5173 tcp:4000 && electron .",
+        "start": "electron .",
+        "build": "node -e \"console.log('Packager not configured yet. Add electron-builder for release builds.')\""
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "electron": "^31.7.7"
+    }
+}
