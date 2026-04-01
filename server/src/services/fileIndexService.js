@@ -61,18 +61,21 @@ export class FileIndexService {
             updateOne: {
                 filter: { fileId: item.fileId },
                 update: {
-                    fileId: item.fileId,
-                    name: item.name,
-                    size: item.size,
-                    mimeType: item.mimeType || "application/octet-stream",
-                    path: null,
-                    ownerPeerId: peer.peerId,
-                    ownerName: peer.peerName,
-                    isLocal: false,
-                    hash: item.hash || null,
-                    updatedAtSource: item.updatedAtSource || Date.now()
+                    $set: {
+                        fileId: item.fileId,
+                        name: item.name,
+                        size: item.size,
+                        mimeType: item.mimeType || "application/octet-stream",
+                        path: null,
+                        ownerPeerId: peer.peerId,
+                        ownerName: peer.peerName,
+                        isLocal: false,
+                        hash: item.hash || null,
+                        updatedAtSource: item.updatedAtSource || Date.now()
+                    }
                 },
-                upsert: true
+                upsert: true,
+                setDefaultsOnInsert: false
             }
         }));
 
