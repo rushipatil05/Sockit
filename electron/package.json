@@ -4,7 +4,7 @@
     "private": true,
     "main": "main.js",
     "scripts": {
-        "dev": "wait-on tcp:5173 tcp:4000 && electron .",
+        "dev": "wait-on tcp:5173 && electron .",
         "start": "electron .",
         "build": "node -e \"console.log('Packager not configured yet. Add electron-builder for release builds.')\""
     },
