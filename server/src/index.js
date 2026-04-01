@@ -64,17 +64,25 @@ const discovery = new DiscoveryService({
     config,
     selfPeer,
     onPeerSeen: async (peer) => {
-        const wasNew = !peerRegistry.get(peer.peerId);
-        peerRegistry.upsert(peer);
-        if (wasNew || !peerNetworkService.getSocketByPeerId(peer.peerId)) {
-            await peerNetworkService.connectToPeer(peer);
+        try {
+            const wasNew = !peerRegistry.get(peer.peerId);
+            peerRegistry.upsert(peer);
+            if (wasNew || !peerNetworkService.getSocketByPeerId(peer.peerId)) {
+                await peerNetworkService.connectToPeer(peer);
+            }
+            emitUiSnapshot();
+        } catch (error) {
+            console.error("[discovery] onPeerSeen failed", error.message);
         }
-        emitUiSnapshot();
     },
     onPeerLeft: async (peerLeavingId) => {
-        peerRegistry.markOffline(peerLeavingId);
-        await fileIndexService.removeRemotePeerFiles(peerLeavingId);
-        emitUiSnapshot();
+        try {
+            peerRegistry.markOffline(peerLeavingId);
+            await fileIndexService.removeRemotePeerFiles(peerLeavingId);
+            emitUiSnapshot();
+        } catch (error) {
+            console.error("[discovery] onPeerLeft failed", error.message);
+        }
     }
 });
 

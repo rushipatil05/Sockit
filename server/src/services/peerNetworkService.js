@@ -27,31 +27,47 @@ export class PeerNetworkService {
         }
 
         socket.on(Events.INDEX_REQUEST, async (_, callback) => {
-            const localFiles = await this.fileIndexService.getLocalFiles();
-            callback?.({ ok: true, files: localFiles });
+            try {
+                const localFiles = await this.fileIndexService.getLocalFiles();
+                callback?.({ ok: true, files: localFiles });
+            } catch (error) {
+                callback?.({ ok: false, error: error.message || "index request failed" });
+            }
         });
 
         socket.on(Events.INDEX_UPSERT, async (payload) => {
-            if (!payload?.peer?.peerId || !payload?.file) {
-                return;
+            try {
+                if (!payload?.peer?.peerId || !payload?.file) {
+                    return;
+                }
+                await this.fileIndexService.upsertRemoteFiles(payload.peer, [payload.file]);
+                this.io.emit(Events.INDEX_UPSERT, payload);
+                this.onUiUpdate();
+            } catch (error) {
+                console.error("[peer] incoming index upsert failed", error.message);
             }
-            await this.fileIndexService.upsertRemoteFiles(payload.peer, [payload.file]);
-            this.io.emit(Events.INDEX_UPSERT, payload);
-            this.onUiUpdate();
         });
 
         socket.on(Events.INDEX_REMOVE, async (payload) => {
-            if (!payload?.peerId) {
-                return;
+            try {
+                if (!payload?.peerId) {
+                    return;
+                }
+                await this.fileIndexService.removeRemotePeerFiles(payload.peerId);
+                this.io.emit(Events.INDEX_REMOVE, payload);
+                this.onUiUpdate();
+            } catch (error) {
+                console.error("[peer] incoming index remove failed", error.message);
             }
-            await this.fileIndexService.removeRemotePeerFiles(payload.peerId);
-            this.io.emit(Events.INDEX_REMOVE, payload);
-            this.onUiUpdate();
         });
 
         socket.on(Events.TRANSFER_PULL_REQUEST, async (payload, callback) => {
-            const result = await this.handlePullRequest(payload);
-            callback(result);
+            try {
+                const result = await this.handlePullRequest(payload);
+                callback(result);
+            } catch (error) {
+                callback({ ok: false, error: error.message || "pull request failed" });
+            }
         });
 
         socket.on("disconnect", () => {
@@ -78,10 +94,18 @@ export class PeerNetworkService {
         });
 
         socket.on("connect", async () => {
-            this.peerRegistry.upsert(peer);
-            this.peerSockets.set(peer.peerId, socket);
-            await this.requestIndexSync(peer.peerId);
-            this.onUiUpdate();
+            try {
+                this.peerRegistry.upsert(peer);
+                this.peerSockets.set(peer.peerId, socket);
+                await this.requestIndexSync(peer.peerId);
+                this.onUiUpdate();
+            } catch (error) {
+                console.error("[peer] connect sync failed", error.message);
+            }
+        });
+
+        socket.on("connect_error", (error) => {
+            console.error("[peer] connect error", error.message);
         });
 
         socket.on("disconnect", () => {
@@ -91,21 +115,29 @@ export class PeerNetworkService {
         });
 
         socket.on(Events.INDEX_UPSERT, async (payload) => {
-            if (!payload?.peer?.peerId || !payload?.file) {
-                return;
+            try {
+                if (!payload?.peer?.peerId || !payload?.file) {
+                    return;
+                }
+                await this.fileIndexService.upsertRemoteFiles(payload.peer, [payload.file]);
+                this.io.emit(Events.INDEX_UPSERT, payload);
+                this.onUiUpdate();
+            } catch (error) {
+                console.error("[peer] outbound index upsert failed", error.message);
             }
-            await this.fileIndexService.upsertRemoteFiles(payload.peer, [payload.file]);
-            this.io.emit(Events.INDEX_UPSERT, payload);
-            this.onUiUpdate();
         });
 
         socket.on(Events.INDEX_REMOVE, async (payload) => {
-            if (!payload?.peerId) {
-                return;
+            try {
+                if (!payload?.peerId) {
+                    return;
+                }
+                await this.fileIndexService.removeRemotePeerFiles(payload.peerId);
+                this.io.emit(Events.INDEX_REMOVE, payload);
+                this.onUiUpdate();
+            } catch (error) {
+                console.error("[peer] outbound index remove failed", error.message);
             }
-            await this.fileIndexService.removeRemotePeerFiles(payload.peerId);
-            this.io.emit(Events.INDEX_REMOVE, payload);
-            this.onUiUpdate();
         });
     }
 
@@ -119,12 +151,16 @@ export class PeerNetworkService {
             return;
         }
 
-        const response = await socket.timeout(8000).emitWithAck(Events.INDEX_REQUEST, {});
-        if (response?.ok && Array.isArray(response.files)) {
-            const peer = this.peerRegistry.get(peerId);
-            if (peer) {
-                await this.fileIndexService.upsertRemoteFiles(peer, response.files);
+        try {
+            const response = await socket.timeout(8000).emitWithAck(Events.INDEX_REQUEST, {});
+            if (response?.ok && Array.isArray(response.files)) {
+                const peer = this.peerRegistry.get(peerId);
+                if (peer) {
+                    await this.fileIndexService.upsertRemoteFiles(peer, response.files);
+                }
             }
+        } catch (error) {
+            console.error("[peer] index sync failed", error.message);
         }
     }
 
