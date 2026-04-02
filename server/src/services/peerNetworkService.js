@@ -39,6 +39,10 @@ export class PeerNetworkService {
                 serverPort: null,
                 roomId
             });
+            // Store inbound socket so getSocketByPeerId can find it for transfers
+            if (!this.peerSockets.has(remotePeerId)) {
+                this.peerSockets.set(remotePeerId, socket);
+            }
             this.onUiUpdate();
         }
 
@@ -88,6 +92,10 @@ export class PeerNetworkService {
 
         socket.on("disconnect", () => {
             if (remotePeerId) {
+                // Remove inbound socket if it's the one we stored
+                if (this.peerSockets.get(remotePeerId) === socket) {
+                    this.peerSockets.delete(remotePeerId);
+                }
                 this.peerRegistry.markOffline(remotePeerId);
                 this.onUiUpdate();
             }
