@@ -12,6 +12,7 @@ import { FileIndexService } from "./services/fileIndexService.js";
 import { PeerRegistry } from "./services/peerRegistry.js";
 import { PeerNetworkService } from "./services/peerNetworkService.js";
 import { TransferService } from "./services/transferService.js";
+import { RoomService } from "./services/roomService.js";
 import { createApiRouter } from "./routes/api.js";
 import { Events, Roles } from "../../shared/peerProtocol.js";
 
@@ -35,6 +36,7 @@ const io = new Server(httpServer, {
 });
 
 const peerRegistry = new PeerRegistry();
+const roomService = new RoomService({ selfPeerId: selfPeer.peerId });
 const fileIndexService = new FileIndexService({
     peerId: selfPeer.peerId,
     peerName: selfPeer.peerName
@@ -45,11 +47,16 @@ const downloadDir = path.resolve(process.cwd(), config.downloadDir);
 await fs.mkdir(sharedDir, { recursive: true });
 await fs.mkdir(downloadDir, { recursive: true });
 
+// Clear stale file index from previous session
+await fileIndexService.clearAll();
+console.log("[startup] cleared previous session file index");
+
 const peerNetworkService = new PeerNetworkService({
     selfPeer,
     io,
     fileIndexService,
     peerRegistry,
+    roomService,
     onUiUpdate: emitUiSnapshot
 });
 
@@ -63,10 +70,21 @@ const transferService = new TransferService({
 const discovery = new DiscoveryService({
     config,
     selfPeer,
+    getDiscoveryInfo: () => roomService.getDiscoveryInfo(),
     onPeerSeen: async (peer) => {
         try {
             const wasNew = !peerRegistry.get(peer.peerId);
             peerRegistry.upsert(peer);
+            if (!roomService.isActive()) {
+                emitUiSnapshot();
+                return;
+            }
+
+            if (!roomService.canConnectToPeer(peer)) {
+                emitUiSnapshot();
+                return;
+            }
+
             if (wasNew || !peerNetworkService.getSocketByPeerId(peer.peerId)) {
                 await peerNetworkService.connectToPeer(peer);
             }
@@ -93,6 +111,7 @@ app.use(
     "/api",
     createApiRouter({
         peerRegistry,
+        roomService,
         fileIndexService,
         transferService,
         peerNetworkService
@@ -118,7 +137,8 @@ io.on("connection", (socket) => {
 function emitUiSnapshot() {
     io.emit(Events.PEER_STATE, {
         selfPeer,
-        peers: peerRegistry.list()
+        peers: peerRegistry.list(),
+        room: roomService.getRoomSummary()
     });
 }
 

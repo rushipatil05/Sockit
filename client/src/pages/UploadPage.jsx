@@ -1,18 +1,16 @@
 import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { shareFile } from "../api";
-import { Panel } from "../components/Panel";
+import { Section } from "../components/Panel";
 
 export function UploadPage({ onUploaded }) {
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const dragRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const doShare = useCallback(
         async (filePath) => {
-            if (!filePath) {
-                return;
-            }
+            if (!filePath) return;
             setIsLoading(true);
             try {
                 const file = await shareFile(filePath);
@@ -38,42 +36,69 @@ export function UploadPage({ onUploaded }) {
 
     function onDrop(e) {
         e.preventDefault();
-        dragRef.current?.classList.remove("ring-2", "ring-neon/50");
+        setIsDragging(false);
         const droppedPath = e.dataTransfer.files?.[0]?.path;
         doShare(droppedPath);
     }
 
     return (
-        <Panel
+        <Section
             title="Share New File"
-            subtitle="Files stay on your device. Only metadata is synced."
+            subtitle="Files stay on your device — only metadata is synced"
             action={
                 <button
-                    className="rounded-lg bg-neon/20 px-4 py-2 text-sm text-neon transition hover:bg-neon/30"
+                    className="rounded-xl bg-gradient-to-r from-accent to-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-glow hover:shadow-[0_0_50px_rgba(59,130,246,0.25)] hover:brightness-110 disabled:opacity-40"
                     onClick={handleChooseFile}
                     disabled={isLoading}
                 >
-                    {isLoading ? "Sharing..." : "Pick File"}
+                    {isLoading ? "Sharing…" : "Pick File"}
                 </button>
             }
         >
             <motion.div
-                ref={dragRef}
                 onDragOver={(e) => {
                     e.preventDefault();
-                    dragRef.current?.classList.add("ring-2", "ring-neon/50");
+                    setIsDragging(true);
                 }}
-                onDragLeave={() => dragRef.current?.classList.remove("ring-2", "ring-neon/50")}
+                onDragLeave={() => setIsDragging(false)}
                 onDrop={onDrop}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center"
+                className={`relative overflow-hidden rounded-2xl py-16 text-center transition-all duration-300 ${
+                    isDragging
+                        ? "bg-accent/[0.08] ring-2 ring-accent/30"
+                        : "bg-white/[0.02]"
+                }`}
             >
-                <p className="font-heading text-xl text-white">Drag and drop a file here</p>
-                <p className="mt-2 text-sm text-white/50">or use the file picker to publish it in your local index.</p>
+                {/* Decorative gradient border */}
+                <div className="absolute inset-0 rounded-2xl border border-dashed border-white/[0.08]" />
+
+                {/* Upload icon */}
+                <div className="relative z-10">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/[0.08]">
+                        <svg className="h-7 w-7 text-accent/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                    </div>
+                    <p className="font-heading text-lg font-medium text-white/80">
+                        Drag and drop a file here
+                    </p>
+                    <p className="mt-1.5 text-sm text-white/30">
+                        or use the file picker to publish it in your local index
+                    </p>
+                </div>
             </motion.div>
 
-            {message ? <p className="mt-4 text-sm text-neon2">{message}</p> : null}
-        </Panel>
+            {message && (
+                <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 flex items-center gap-2 rounded-xl bg-white/[0.03] px-4 py-3"
+                >
+                    <span className="text-xs text-accent">→</span>
+                    <p className="text-sm text-white/60">{message}</p>
+                </motion.div>
+            )}
+        </Section>
     );
 }

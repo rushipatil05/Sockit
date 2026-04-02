@@ -31,10 +31,17 @@ export class TransferService {
 
         const targetPath = path.join(outputDir, file.name);
         let offset = 0;
+        let resume = false;
 
         try {
             const stats = await fs.stat(targetPath);
-            offset = stats.size;
+            if (stats.size > 0 && stats.size < file.size) {
+                offset = stats.size;
+                resume = true;
+            } else if (stats.size >= file.size) {
+                await fs.truncate(targetPath, 0);
+                offset = 0;
+            }
         } catch {
             offset = 0;
         }
@@ -56,20 +63,29 @@ export class TransferService {
         this.transfers.set(transferId, transferState);
         this.io.emit(Events.TRANSFER_PROGRESS, transferState);
 
-        const fileHandle = await fs.open(targetPath, "a");
+        const fileHandle = await fs.open(targetPath, resume ? "a" : "w");
 
         try {
             while (true) {
-                const response = await socket
+                const ack = await socket
                     .timeout(10000)
                     .emitWithAck(Events.TRANSFER_PULL_REQUEST, { fileId, offset, chunkSize: 256 * 1024 });
+
+                // Some Socket.IO transports may return ack wrapped in a single-item array.
+                const response = Array.isArray(ack) ? ack[0] : ack;
 
                 if (!response?.ok) {
                     throw new Error(response?.error || "Chunk transfer failed");
                 }
 
                 const chunkBuffer = Buffer.from(response.chunk, "base64");
-                await fileHandle.write(chunkBuffer, 0, chunkBuffer.length);
+                if (chunkBuffer.length === 0 && !response.eof) {
+                    throw new Error("Received empty chunk before EOF");
+                }
+
+                if (chunkBuffer.length > 0) {
+                    await fileHandle.write(chunkBuffer, 0, chunkBuffer.length);
+                }
                 offset = response.nextOffset;
 
                 transferState.downloadedBytes = offset;

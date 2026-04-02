@@ -11,6 +11,11 @@ export class FileIndexService {
         this.peerName = peerName;
     }
 
+    /** Wipe all file metadata so each session starts fresh. */
+    async clearAll() {
+        await SharedFile.deleteMany({});
+    }
+
     async shareFile(filePath) {
         const absolutePath = path.resolve(filePath);
         const stats = await fs.stat(absolutePath);

@@ -15,11 +15,12 @@ function getLanIp() {
 }
 
 export class DiscoveryService {
-    constructor({ config, selfPeer, onPeerSeen, onPeerLeft }) {
+    constructor({ config, selfPeer, onPeerSeen, onPeerLeft, getDiscoveryInfo }) {
         this.config = config;
         this.selfPeer = selfPeer;
         this.onPeerSeen = onPeerSeen;
         this.onPeerLeft = onPeerLeft;
+        this.getDiscoveryInfo = getDiscoveryInfo;
         this.socket = dgram.createSocket("udp4");
         this.heartbeat = null;
     }
@@ -60,6 +61,7 @@ export class DiscoveryService {
     }
 
     broadcastHello() {
+        const discoveryInfo = this.getDiscoveryInfo?.() || {};
         const payload = {
             type: Events.HELLO,
             protocol: PROTOCOL_VERSION,
@@ -68,6 +70,7 @@ export class DiscoveryService {
             host: getLanIp(),
             socketPort: this.selfPeer.socketPort,
             serverPort: this.selfPeer.serverPort,
+            roomId: discoveryInfo.roomId || null,
             ts: Date.now()
         };
 

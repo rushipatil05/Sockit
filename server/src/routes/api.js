@@ -1,7 +1,14 @@
 import express from "express";
 
-export function createApiRouter({ peerRegistry, fileIndexService, transferService, peerNetworkService }) {
+export function createApiRouter({ peerRegistry, roomService, fileIndexService, transferService, peerNetworkService }) {
     const router = express.Router();
+
+    function ensureRoom(req, res, next) {
+        if (!roomService.isActive()) {
+            return res.status(403).json({ error: "Join or create a room first." });
+        }
+        next();
+    }
 
     router.get("/health", (_req, res) => {
         res.json({ ok: true });
@@ -11,7 +18,31 @@ export function createApiRouter({ peerRegistry, fileIndexService, transferServic
         res.json({ peers: peerRegistry.list() });
     });
 
-    router.get("/files", async (_req, res, next) => {
+    router.get("/room", (_req, res) => {
+        res.json({ room: roomService.getRoomSummary() });
+    });
+
+    router.post("/room/create", (req, res, next) => {
+        try {
+            const { roomId, roomKey } = req.body || {};
+            const room = roomService.createRoom({ roomId, roomKey });
+            res.status(201).json({ room });
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    router.post("/room/join", (req, res, next) => {
+        try {
+            const { roomId, roomKey } = req.body || {};
+            const room = roomService.joinRoom({ roomId, roomKey });
+            res.status(200).json({ room });
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    router.get("/files", ensureRoom, async (_req, res, next) => {
         try {
             const files = await fileIndexService.getAllFiles();
             res.json({ files });
@@ -20,7 +51,7 @@ export function createApiRouter({ peerRegistry, fileIndexService, transferServic
         }
     });
 
-    router.post("/files/share", async (req, res, next) => {
+    router.post("/files/share", ensureRoom, async (req, res, next) => {
         try {
             const { path } = req.body;
             if (!path) {
@@ -35,11 +66,11 @@ export function createApiRouter({ peerRegistry, fileIndexService, transferServic
         }
     });
 
-    router.get("/transfers", (_req, res) => {
+    router.get("/transfers", ensureRoom, (_req, res) => {
         res.json({ transfers: transferService.listTransfers() });
     });
 
-    router.post("/transfers/download", async (req, res, next) => {
+    router.post("/transfers/download", ensureRoom, async (req, res, next) => {
         try {
             const { peerId, fileId, saveDir } = req.body;
             if (!peerId || !fileId) {

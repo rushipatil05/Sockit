@@ -9,6 +9,21 @@ export async function fetchPeers() {
     return data.peers;
 }
 
+export async function fetchRoom() {
+    const { data } = await api.get("/room");
+    return data.room;
+}
+
+export async function createRoom(payload) {
+    const { data } = await api.post("/room/create", payload);
+    return data.room;
+}
+
+export async function joinRoom(payload) {
+    const { data } = await api.post("/room/join", payload);
+    return data.room;
+}
+
 export async function fetchFiles() {
     const { data } = await api.get("/files");
     return data.files;

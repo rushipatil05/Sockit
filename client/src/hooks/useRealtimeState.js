@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { fetchFiles, fetchPeers, fetchTransfers } from "../api";
+import { fetchFiles, fetchPeers, fetchRoom, fetchTransfers } from "../api";
 
 export function useRealtimeState() {
+    const [room, setRoom] = useState({ active: false });
     const [peers, setPeers] = useState([]);
     const [files, setFiles] = useState([]);
     const [transfers, setTransfers] = useState([]);
@@ -11,19 +12,26 @@ export function useRealtimeState() {
         let mounted = true;
 
         async function bootstrap() {
-            const [nextPeers, nextFiles, nextTransfers] = await Promise.all([
-                fetchPeers(),
-                fetchFiles(),
-                fetchTransfers()
-            ]);
+            const [nextPeers, nextRoom] = await Promise.all([fetchPeers(), fetchRoom()]);
 
             if (!mounted) {
                 return;
             }
 
             setPeers(nextPeers);
-            setFiles(nextFiles);
-            setTransfers(nextTransfers);
+            setRoom(nextRoom || { active: false });
+
+            if (nextRoom?.active) {
+                const [nextFiles, nextTransfers] = await Promise.all([fetchFiles(), fetchTransfers()]);
+                if (!mounted) {
+                    return;
+                }
+                setFiles(nextFiles);
+                setTransfers(nextTransfers);
+            } else {
+                setFiles([]);
+                setTransfers([]);
+            }
         }
 
         bootstrap().catch(() => {
@@ -39,6 +47,9 @@ export function useRealtimeState() {
 
         socket.on("peer:state", (payload) => {
             setPeers(payload?.peers || []);
+            if (payload?.room) {
+                setRoom(payload.room);
+            }
         });
 
         socket.on("index:upsert", () => {
@@ -76,8 +87,8 @@ export function useRealtimeState() {
     }, []);
 
     return useMemo(
-        () => ({ peers, files, transfers, setPeers, setFiles, setTransfers }),
-        [peers, files, transfers]
+        () => ({ room, setRoom, peers, files, transfers, setPeers, setFiles, setTransfers }),
+        [room, peers, files, transfers]
     );
 }
 
