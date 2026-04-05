@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+﻿import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { shareFile } from "../api";
 import { Section } from "../components/Panel";
@@ -44,14 +44,14 @@ export function UploadPage({ onUploaded }) {
     return (
         <Section
             title="Share New File"
-            subtitle="Files stay on your device — only metadata is synced"
+            subtitle="Files stay on your device - only metadata is synced"
             action={
                 <button
-                    className="rounded-xl bg-gradient-to-r from-accent to-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-glow hover:shadow-[0_0_50px_rgba(59,130,246,0.25)] hover:brightness-110 disabled:opacity-40"
+                    className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-base hover:opacity-90 disabled:opacity-40"
                     onClick={handleChooseFile}
                     disabled={isLoading}
                 >
-                    {isLoading ? "Sharing…" : "Pick File"}
+                    {isLoading ? "Sharing..." : "Pick File"}
                 </button>
             }
         >
@@ -66,12 +66,11 @@ export function UploadPage({ onUploaded }) {
                 animate={{ opacity: 1, y: 0 }}
                 className={`relative overflow-hidden rounded-2xl py-16 text-center transition-all duration-300 ${
                     isDragging
-                        ? "bg-accent/[0.08] ring-2 ring-accent/30"
-                        : "bg-white/[0.02]"
+                        ? "border border-accent bg-surface"
+                        : "border border-white/10 bg-surface"
                 }`}
             >
-                {/* Decorative gradient border */}
-                <div className="absolute inset-0 rounded-2xl border border-dashed border-white/[0.08]" />
+                <div className="absolute inset-0 rounded-2xl border border-dashed border-white/15" />
 
                 {/* Upload icon */}
                 <div className="relative z-10">
@@ -80,10 +79,10 @@ export function UploadPage({ onUploaded }) {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                         </svg>
                     </div>
-                    <p className="font-heading text-lg font-medium text-white/80">
+                    <p className="font-heading text-lg font-medium text-text-primary">
                         Drag and drop a file here
                     </p>
-                    <p className="mt-1.5 text-sm text-white/30">
+                    <p className="mt-1.5 text-sm text-text-secondary">
                         or use the file picker to publish it in your local index
                     </p>
                 </div>
@@ -93,12 +92,15 @@ export function UploadPage({ onUploaded }) {
                 <motion.div
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-4 flex items-center gap-2 rounded-xl bg-white/[0.03] px-4 py-3"
+                    className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-surface px-4 py-3"
                 >
-                    <span className="text-xs text-accent">→</span>
-                    <p className="text-sm text-white/60">{message}</p>
+                    <span className="text-xs text-accent">-&gt;</span>
+                    <p className="text-sm text-text-secondary">{message}</p>
                 </motion.div>
             )}
         </Section>
     );
 }
+
+
+

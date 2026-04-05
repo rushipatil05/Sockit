@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
 import { fetchFiles, fetchPeers, fetchRoom, fetchTransfers } from "../api";
 
@@ -101,3 +101,5 @@ function mergeTransfer(previous, next) {
     copy[index] = { ...copy[index], ...next };
     return copy;
 }
+
+
