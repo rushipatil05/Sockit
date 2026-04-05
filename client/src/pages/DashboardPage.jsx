@@ -250,11 +250,10 @@ export function DashboardPage({ room, peers, files, transfers, onTransferQueued,
                                         transition={{ delay: i * 0.06 }}
                                         className="flex items-center gap-2.5"
                                     >
-                                        <div className={`h-2 w-2 rounded-full ${
-                                            peer.status === "online" || !peer.status
+                                        <div className={`h-2 w-2 rounded-full ${peer.status === "online" || !peer.status
                                                 ? "bg-emerald-400"
                                                 : "bg-white/20"
-                                        }`} />
+                                            }`} />
                                         <span className="text-sm text-text-primary">{peer.peerName || peer.host || "Unknown"}</span>
                                     </motion.div>
                                 ))}
@@ -288,13 +287,12 @@ export function DashboardPage({ room, peers, files, transfers, onTransferQueued,
                             <div key={transfer.transferId} className="px-5 py-3.5">
                                 <div className="flex items-center justify-between mb-2">
                                     <p className="text-sm text-text-primary truncate">{transfer.fileName}</p>
-                                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                                        transfer.status === "completed"
+                                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${transfer.status === "completed"
                                             ? "bg-success/10 text-success"
                                             : transfer.status === "failed"
                                                 ? "bg-danger/10 text-danger"
                                                 : "bg-base text-text-secondary"
-                                    }`}>
+                                        }`}>
                                         {transfer.status}
                                     </span>
                                 </div>

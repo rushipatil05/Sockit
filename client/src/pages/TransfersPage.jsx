@@ -38,13 +38,12 @@ export function TransfersPage({ transfers }) {
                                     </div>
                                     <p className="text-sm font-medium text-text-primary">{transfer.fileName}</p>
                                 </div>
-                                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                                    transfer.status === "completed"
+                                <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${transfer.status === "completed"
                                         ? "bg-success/10 text-success"
                                         : transfer.status === "failed"
                                             ? "bg-danger/10 text-danger"
                                             : "bg-base text-text-secondary"
-                                }`}>
+                                    }`}>
                                     {transfer.status}
                                 </span>
                             </div>

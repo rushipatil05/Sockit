@@ -64,11 +64,10 @@ export function UploadPage({ onUploaded }) {
                 onDrop={onDrop}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`relative overflow-hidden rounded-2xl py-16 text-center transition-all duration-300 ${
-                    isDragging
+                className={`relative overflow-hidden rounded-2xl py-16 text-center transition-all duration-300 ${isDragging
                         ? "border border-accent bg-surface"
                         : "border border-white/10 bg-surface"
-                }`}
+                    }`}
             >
                 <div className="absolute inset-0 rounded-2xl border border-dashed border-white/15" />
 
