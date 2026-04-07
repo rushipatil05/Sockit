@@ -1,5 +1,24 @@
+const fs = require("node:fs");
 const path = require("node:path");
 const { app, BrowserWindow, dialog, ipcMain, Notification, shell } = require("electron");
+
+function resolveWindowIcon() {
+    if (!app.isPackaged) {
+        return path.join(__dirname, "../client/src/assets/socket_logo.png");
+    }
+
+    const assetDir = path.join(__dirname, "../client/dist/assets");
+    try {
+        const matches = fs.readdirSync(assetDir).filter((file) => file.startsWith("socket_logo") && file.endsWith(".png"));
+        if (matches.length > 0) {
+            return path.join(assetDir, matches[0]);
+        }
+    } catch {
+        // Fall back below if the asset directory is not available yet.
+    }
+
+    return path.join(__dirname, "build/icon.png");
+}
 
 function createWindow() {
     const window = new BrowserWindow({
@@ -8,6 +27,7 @@ function createWindow() {
         minWidth: 1080,
         minHeight: 720,
         backgroundColor: "#060910",
+        icon: resolveWindowIcon(),
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
@@ -63,7 +83,7 @@ ipcMain.handle("socket-share:pick-folder", async () => {
 ipcMain.handle("socket-share:notify", async (_event, payload) => {
     if (Notification.isSupported()) {
         new Notification({
-            title: payload?.title || "Socket Share",
+            title: payload?.title || "sockit",
             body: payload?.body || ""
         }).show();
     }

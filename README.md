@@ -1,6 +1,6 @@
-# Socket Share
+# sockit
 
-Socket Share is an offline-first desktop LAN file sharing app built with MERN + Electron.
+sockit is an offline-first desktop LAN file sharing app built with MERN + Electron.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Socket Share is an offline-first desktop LAN file sharing app built with MERN + 
 ## Project Structure
 
 ```text
-SocketShare/
+sockit/
   client/                 React UI
   server/                 Express API + Socket server + UDP discovery
   electron/               Desktop shell (main + preload)
@@ -74,7 +74,7 @@ This starts:
 
 ### 4. LAN testing across devices
 
-Run Socket Share on at least two devices in the same LAN.
+Run sockit on at least two devices in the same LAN.
 
 Use unique values per device for:
 

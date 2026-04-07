@@ -1,4 +1,5 @@
 ﻿import { motion } from "framer-motion";
+import socketLogo from "../assets/socket_logo.png";
 
 export function Shell({ children, room }) {
     return (
@@ -13,12 +14,12 @@ export function Shell({ children, room }) {
                 <div className="flex items-center justify-between">
                     {/* Brand */}
                     <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface border border-white/10">
-                            <span className="font-mono text-sm font-bold text-accent">SS</span>
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-surface">
+                            <img src={socketLogo} alt="Sockit" className="h-full w-full object-cover" />
                         </div>
                         <div>
                             <h1 className="font-heading text-xl font-bold tracking-tight text-text-primary">
-                                Socket<span className="text-accent">Share</span>
+                                Sock<span className="text-accent">it</span>
                             </h1>
                             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-text-secondary">
                                 Local Network Workspace
