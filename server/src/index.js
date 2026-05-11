@@ -6,7 +6,6 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "./config.js";
-import { connectMongo } from "./db.js";
 import { DiscoveryService } from "./services/discoveryService.js";
 import { FileIndexService } from "./services/fileIndexService.js";
 import { PeerRegistry } from "./services/peerRegistry.js";
@@ -23,8 +22,6 @@ const selfPeer = {
     socketPort: config.socketPort,
     serverPort: config.serverPort
 };
-
-await connectMongo();
 
 const app = express();
 const httpServer = createServer(app);

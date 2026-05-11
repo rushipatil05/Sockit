@@ -1,5 +1,30 @@
 const path = require("node:path");
+const { spawn } = require("node:child_process");
 const { app, BrowserWindow, dialog, ipcMain, Notification, shell } = require("electron");
+
+let serverProcess = null;
+
+function startServer() {
+    const serverPath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar", "server", "src", "index.js")
+        : path.join(__dirname, "..", "server", "src", "index.js");
+
+    const env = {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
+        DOWNLOAD_DIR: path.join(app.getPath("downloads"), "SocketShare"),
+        SHARED_FILES_DIR: path.join(app.getPath("userData"), "uploads")
+    };
+
+    serverProcess = spawn(process.execPath, [serverPath], {
+        env,
+        stdio: "inherit"
+    });
+
+    serverProcess.on("close", (code) => {
+        console.log(`Server process exited with code ${code}`);
+    });
+}
 
 function createWindow() {
     const window = new BrowserWindow({
@@ -25,6 +50,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    startServer();
     createWindow();
 
     app.on("activate", () => {
@@ -35,8 +61,17 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+    if (serverProcess) {
+        serverProcess.kill();
+    }
     if (process.platform !== "darwin") {
         app.quit();
+    }
+});
+
+app.on("before-quit", () => {
+    if (serverProcess) {
+        serverProcess.kill();
     }
 });
 
