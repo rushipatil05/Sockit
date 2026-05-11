@@ -3,17 +3,17 @@ import crypto from "node:crypto";
 import path from "node:path";
 import mime from "mime-types";
 import { v4 as uuidv4 } from "uuid";
+import { FileEntry } from "../models/FileEntry.js";
 
 export class FileIndexService {
     constructor({ peerId, peerName }) {
         this.peerId = peerId;
         this.peerName = peerName;
-        this.files = []; // In-memory database
     }
 
-    /** Wipe all file metadata so each session starts fresh. */
+    /** Remove all file records owned by this peer from a previous session. */
     async clearAll() {
-        this.files = [];
+        await FileEntry.deleteMany({ ownerPeerId: this.peerId });
     }
 
     async shareFile(filePath) {
@@ -27,58 +27,55 @@ export class FileIndexService {
         const name = path.basename(absolutePath);
         const mimeType = mime.lookup(name) || "application/octet-stream";
         const hash = await this.computeHash(absolutePath);
-        
-        let fileEntry = this.files.find(f => f.path === absolutePath && f.ownerPeerId === this.peerId && f.isLocal);
 
-        if (fileEntry) {
-            fileEntry.fileId = fileEntry.fileId || uuidv4();
-            fileEntry.name = name;
-            fileEntry.size = stats.size;
-            fileEntry.mimeType = mimeType;
-            fileEntry.hash = hash;
-            fileEntry.updatedAtSource = Date.now();
-        } else {
-            fileEntry = {
-                fileId: uuidv4(),
-                name,
-                size: stats.size,
-                mimeType,
-                path: absolutePath,
-                ownerPeerId: this.peerId,
-                ownerName: this.peerName,
-                isLocal: true,
-                hash,
-                updatedAtSource: Date.now()
-            };
-            this.files.push(fileEntry);
+        // Update existing entry if the same local file is re-shared
+        const existing = await FileEntry.findOne({
+            path: absolutePath,
+            ownerPeerId: this.peerId,
+            isLocal: true
+        });
+
+        if (existing) {
+            existing.name = name;
+            existing.size = stats.size;
+            existing.mimeType = mimeType;
+            existing.hash = hash;
+            existing.updatedAtSource = Date.now();
+            await existing.save();
+            return existing.toObject();
         }
 
-        return fileEntry;
+        const entry = await FileEntry.create({
+            fileId: uuidv4(),
+            name,
+            size: stats.size,
+            mimeType,
+            path: absolutePath,
+            ownerPeerId: this.peerId,
+            ownerName: this.peerName,
+            isLocal: true,
+            hash,
+            updatedAtSource: Date.now()
+        });
+
+        return entry.toObject();
     }
 
     async getLocalFiles() {
-        return this.files.filter(f => f.isLocal && f.ownerPeerId === this.peerId);
+        const docs = await FileEntry.find({ isLocal: true, ownerPeerId: this.peerId }).lean();
+        return docs;
     }
 
     async getAllFiles() {
-        return [...this.files].sort((a, b) => b.updatedAtSource - a.updatedAtSource);
+        const docs = await FileEntry.find({}).sort({ updatedAtSource: -1 }).lean();
+        return docs;
     }
 
     async upsertRemoteFiles(peer, files) {
         for (const item of files) {
-            let existing = this.files.find(f => f.fileId === item.fileId);
-            if (existing) {
-                existing.name = item.name;
-                existing.size = item.size;
-                existing.mimeType = item.mimeType || "application/octet-stream";
-                existing.path = null;
-                existing.ownerPeerId = peer.peerId;
-                existing.ownerName = peer.peerName;
-                existing.isLocal = false;
-                existing.hash = item.hash || null;
-                existing.updatedAtSource = item.updatedAtSource || Date.now();
-            } else {
-                this.files.push({
+            await FileEntry.findOneAndUpdate(
+                { fileId: item.fileId },
+                {
                     fileId: item.fileId,
                     name: item.name,
                     size: item.size,
@@ -89,17 +86,19 @@ export class FileIndexService {
                     isLocal: false,
                     hash: item.hash || null,
                     updatedAtSource: item.updatedAtSource || Date.now()
-                });
-            }
+                },
+                { upsert: true, new: true }
+            );
         }
     }
 
     async removeRemotePeerFiles(peerId) {
-        this.files = this.files.filter(f => !(f.ownerPeerId === peerId && !f.isLocal));
+        await FileEntry.deleteMany({ ownerPeerId: peerId, isLocal: false });
     }
 
     async getFileById(fileId) {
-        return this.files.find(f => f.fileId === fileId) || null;
+        const doc = await FileEntry.findOne({ fileId }).lean();
+        return doc || null;
     }
 
     async computeHash(filePath) {
