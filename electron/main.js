@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { app, BrowserWindow, dialog, ipcMain, Notification, shell } = require("electron");
@@ -33,6 +34,7 @@ function createWindow() {
         minWidth: 1080,
         minHeight: 720,
         backgroundColor: "#060910",
+        icon: resolveWindowIcon(),
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true,
@@ -98,7 +100,7 @@ ipcMain.handle("socket-share:pick-folder", async () => {
 ipcMain.handle("socket-share:notify", async (_event, payload) => {
     if (Notification.isSupported()) {
         new Notification({
-            title: payload?.title || "Socket Share",
+            title: payload?.title || "sockit",
             body: payload?.body || ""
         }).show();
     }

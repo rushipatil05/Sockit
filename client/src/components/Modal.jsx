@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 
@@ -28,7 +28,7 @@ export function Modal({ open, onClose, title, subtitle, children }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-md"
+            className="absolute inset-0 bg-black/60"
             onClick={onClose}
           />
 
@@ -38,22 +38,21 @@ export function Modal({ open, onClose, title, subtitle, children }) {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="relative w-full max-w-lg overflow-hidden rounded-2xl 
-                       bg-white/[0.04] backdrop-blur-xl 
-                       border border-white/10 
-                       shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
+                       bg-surface 
+                       border border-white/10"
           >
 
-            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className="h-px bg-white/10" />
 
             <div className="flex items-start justify-between px-6 pt-6 pb-2">
               <div>
                 {title && (
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-text-primary">
                     {title}
                   </h3>
                 )}
                 {subtitle && (
-                  <p className="mt-1 text-sm text-white/40">
+                  <p className="mt-1 text-sm text-text-secondary">
                     {subtitle}
                   </p>
                 )}
@@ -62,10 +61,10 @@ export function Modal({ open, onClose, title, subtitle, children }) {
               <button
                 onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-lg 
-                           text-white/40 hover:text-white 
+                           text-text-secondary hover:text-text-primary 
                            hover:bg-white/10 transition"
               >
-                ✕
+                X
               </button>
             </div>
 
@@ -73,7 +72,7 @@ export function Modal({ open, onClose, title, subtitle, children }) {
               {children}
             </div>
 
-            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="h-px bg-white/10" />
           </motion.div>
         </div>
       )}
@@ -81,3 +80,5 @@ export function Modal({ open, onClose, title, subtitle, children }) {
     document.body
   );
 }
+
+

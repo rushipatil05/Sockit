@@ -5,7 +5,7 @@ dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
 dotenv.config();
 
 export const config = {
-    appName: process.env.APP_NAME || "Socket Share",
+    appName: process.env.APP_NAME || "sockit",
     mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/socket-share",
     nodeEnv: process.env.NODE_ENV || "development",
     udpPort: Number(process.env.UDP_PORT || 41234),

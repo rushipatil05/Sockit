@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+﻿import { motion } from "framer-motion";
 
 export function Section({ title, subtitle, action, children, delay = 0 }) {
     return (
@@ -11,12 +11,12 @@ export function Section({ title, subtitle, action, children, delay = 0 }) {
                 <div className="mb-4 flex items-end justify-between">
                     <div>
                         {title && (
-                            <h2 className="font-heading text-lg font-semibold text-white/90">
+                            <h2 className="font-heading text-lg font-semibold text-text-primary">
                                 {title}
                             </h2>
                         )}
                         {subtitle && (
-                            <p className="mt-0.5 text-sm text-white/35">{subtitle}</p>
+                            <p className="mt-0.5 text-sm text-text-secondary">{subtitle}</p>
                         )}
                     </div>
                     {action}
@@ -26,3 +26,5 @@ export function Section({ title, subtitle, action, children, delay = 0 }) {
         </motion.section>
     );
 }
+
+
