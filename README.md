@@ -33,13 +33,33 @@ NodeShare/
 
 ---
 
+## Quick Start — Desktop App (.exe)
+
+**For end users who just want to run the app:**
+
+1. Download the latest `.exe` from the [Releases](../../releases) page
+2. Run `NodeShare 1.0.0.exe` — no installation needed
+3. Create or join a room and start sharing files
+
+**That's it!** The app includes everything it needs to run.
+
+---
+
 ## Prerequisites
+
+### For Development & Building
 
 - **Node.js 20+** — [nodejs.org](https://nodejs.org)
 - **npm 9+** (comes with Node.js)
 - **MongoDB 6+** — [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
   - Must be running locally before starting the app (default: `mongodb://127.0.0.1:27017`)
   - No manual setup needed — NodeShare creates the `nodeshare` database automatically.
+
+### For End Users (Running .exe)
+
+- **Windows 7+** (64-bit)
+- **MongoDB 6+** running locally (or configure `MONGO_URI` in environment)
+- That's all!
 
 ---
 
@@ -112,16 +132,73 @@ The Electron window opens automatically once the React dev server is ready on po
 
 ---
 
-### Build a Distributable Executable (.exe)
+### Build a Distributable Executable (.exe) — Windows
+
+**For developers:** Build a standalone `.exe` that end users can run without Node.js, npm, or any build tools.
+
+#### Prerequisites for Building
+
+Make sure you have completed the setup steps (Node.js, MongoDB, dependencies installed).
+
+#### Build Steps
 
 ```bash
+# 1. Ensure MongoDB is running
+# 2. Build the .exe
 npm run build:exe
 ```
 
-This:
-1. Builds the React frontend (`client/dist/`)
-2. Packages everything with `electron-builder`
-3. Outputs a portable `.exe` to `release-desktop/win-unpacked/`
+**That's it!** The build process:
+- ✅ Builds the React frontend (`client/dist/`)
+- ✅ Bundles the Node.js server
+- ✅ Packages everything into Electron
+- ✅ Creates a portable `.exe`
+
+#### Output
+
+The `.exe` file is located at:
+
+```
+release-desktop/
+└── NodeShare Setup 1.0.0.exe  ← This is your desktop app!
+    (or NodeShare 1.0.0.exe depending on build config)
+```
+
+#### Running the Built .exe
+
+1. Navigate to `release-desktop/`
+2. Double-click `NodeShare 1.0.0.exe`
+3. The app launches immediately with a native window
+4. Create or join a room and start sharing!
+
+#### Build Customization
+
+To change app name, version, or icon, edit `package.json`:
+
+```json
+{
+  "build": {
+    "appId": "com.socketshare.app",
+    "productName": "NodeShare",  ← App name shown to users
+    "directories": {
+      "output": "release-desktop"
+    },
+    "win": {
+      "target": "portable"  ← Builds a portable .exe (no installer)
+    }
+  }
+}
+```
+
+To create an installer instead of portable:
+
+```json
+"win": {
+  "target": ["nsis"]  ← Creates an installer (.msi)
+}
+```
+
+Then rebuild: `npm run build:exe`
 
 ---
 
@@ -180,8 +257,83 @@ Keep `UDP_PORT`, `SERVER_PORT`, and `SOCKET_PORT` the same across devices (defau
 
 ---
 
+## Troubleshooting
+
+### Build Issues
+
+#### ❌ `npm run build:exe` fails with "Cannot find module..."
+
+**Solution:** Clean install dependencies and rebuild
+
+```bash
+rm -r node_modules client/node_modules server/node_modules electron/node_modules
+npm install
+npm run build:exe
+```
+
+#### ❌ "MongoDB connection refused"
+
+**Solution:** Start MongoDB before building
+
+```bash
+# Windows (if installed as service)
+net start MongoDB
+
+# Or run manually
+mongod
+```
+
+Then run: `npm run build:exe`
+
+#### ❌ "electron-builder not found"
+
+**Solution:** Install dev dependencies
+
+```bash
+npm install --save-dev electron-builder
+npm run build:exe
+```
+
+#### ❌ Code signing error on Windows
+
+**Solution:** The build includes `cross-env CSC_IDENTITY_AUTO_DISCOVERY=false` which disables code signing for local builds. If you still get errors, try:
+
+```bash
+npm run build:exe -- --win portable
+```
+
+### Runtime Issues (Running the .exe)
+
+#### ❌ App crashes on startup
+
+1. **Check MongoDB is running** — open `mongosh` or MongoDB Compass to verify
+2. **Check ports are free** — NodeShare uses ports 4000, 5000, 41234
+3. **Check Windows Firewall** — Allow NodeShare through firewall if prompted
+
+#### ❌ Can't discover peers on the same network
+
+1. Verify all devices are on the **same Wi-Fi/LAN**
+2. Check that UDP port `41234` is not blocked by firewall
+3. Ensure `UDP_BROADCAST_ADDR` is set correctly (default: `255.255.255.255` works for most LANs)
+
+#### ❌ File transfer is very slow
+
+- **Check network speed** with a tool like `iperf3`
+- **Reduce file size** for testing
+- **Check for interference** on your Wi-Fi band (use Wi-Fi analyzer)
+- **Use Ethernet** for faster, more stable transfers
+
+#### ❌ .exe doesn't start (blank screen)
+
+1. Delete `%APPDATA%/NodeShare` (user data folder)
+2. Restart the app
+3. If still blank, check logs in `%APPDATA%/NodeShare/logs/` (if they exist)
+
+---
+
 ## Security Notes
 
 - Rooms are protected by a shared key (SHA-256 hashed before transmission).
 - Intended for use on trusted private LANs — not exposed to the internet.
 - Files never leave the local network.
+- Desktop app runs locally; no telemetry or tracking.

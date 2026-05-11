@@ -4,11 +4,11 @@
     "private": true,
     "main": "main.js",
     "scripts": {
-        "dev": "wait-on tcp:5173 && electron .",
+        "dev": "wait-on http://localhost:5173 && cross-env VITE_PORT=5173 electron .",
         "start": "electron ."
     },
-    "dependencies": {},
     "devDependencies": {
+        "cross-env": "^10.1.0",
         "electron": "^31.7.7"
     }
-}
+}
