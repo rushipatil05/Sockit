@@ -156,3 +156,7 @@ ipcMain.handle("socket-share:open-path", async (_event, targetPath) => {
     await shell.openPath(targetPath);
     return true;
 });
+
+ipcMain.handle("socket-share:quit-app", () => {
+    app.quit();
+});

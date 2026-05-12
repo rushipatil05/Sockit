@@ -47,6 +47,27 @@ Edit the `.env` file in the root folder to customize your setup:
 
 ---
 
+## 💻 How to Run & Exit
+
+### Start the App
+Simply run:
+```bash
+npm run dev
+```
+Everything starts automatically.
+
+### Exit Safely
+- **Just close the Electron window.** The terminal will detect this and automatically kill the background server processes for you.
+- Alternatively, press **`Ctrl + C`** in your terminal.
+
+### 🧹 Port Cleanup (Emergency)
+If you see an error like `EADDRINUSE` (Port already in use), run this command to force-close any hanging background processes:
+```bash
+npm run kill-ports
+```
+
+---
+
 ## 🔧 Troubleshooting
 
 ### ❌ "Can't Download Files"

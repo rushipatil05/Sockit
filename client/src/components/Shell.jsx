@@ -1,4 +1,4 @@
-﻿import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import socketLogo from "../assets/socket_logo.png";
 
 export function Shell({ children, room }) {
@@ -27,18 +27,29 @@ export function Shell({ children, room }) {
                         </div>
                     </div>
 
-                    {/* Status pill */}
-                    <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-surface px-4 py-2">
-                        <div className={`h-1.5 w-1.5 rounded-full ${room?.active ? "bg-success" : "bg-yellow-500/70"}`} />
-                        {room?.active ? (
-                            <p className="font-mono text-xs text-text-secondary">
-                                <span className="text-accent font-medium">{room.roomId}</span>
-                                <span className="mx-1.5 text-text-secondary">|</span>
-                                <span className="text-text-secondary">{room.isHost ? "Host" : "Member"}</span>
-                            </p>
-                        ) : (
-                            <p className="font-mono text-xs text-text-secondary">No active room</p>
-                        )}
+                    <div className="flex items-center gap-3">
+                        {/* Status pill */}
+                        <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-surface px-4 py-2">
+                            <div className={`h-1.5 w-1.5 rounded-full ${room?.active ? "bg-success" : "bg-yellow-500/70"}`} />
+                            {room?.active ? (
+                                <p className="font-mono text-xs text-text-secondary">
+                                    <span className="text-accent font-medium">{room.roomId}</span>
+                                    <span className="mx-1.5 text-text-secondary">|</span>
+                                    <span className="text-text-secondary">{room.isHost ? "Host" : "Member"}</span>
+                                </p>
+                            ) : (
+                                <p className="font-mono text-xs text-text-secondary">No active room</p>
+                            )}
+                        </div>
+
+                        {/* Quit Button */}
+                        <button
+                            onClick={() => window.socketShare?.quitApp()}
+                            className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-200"
+                            title="Close Application"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
                     </div>
                 </div>
 
