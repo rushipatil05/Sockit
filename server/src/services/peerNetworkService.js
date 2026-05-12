@@ -46,7 +46,7 @@ export class PeerNetworkService {
                     return;
                 }
                 await this.fileIndexService.upsertRemoteFiles(payload.peer, [payload.file]);
-                this.io.emit(Events.INDEX_UPSERT, payload);
+                this.notifyUi(Events.INDEX_UPSERT, payload);
                 this.onUiUpdate();
             } catch (error) {
                 console.error("[peer] incoming index upsert failed", error.message);
@@ -59,7 +59,7 @@ export class PeerNetworkService {
                     return;
                 }
                 await this.fileIndexService.removeRemotePeerFiles(payload.peerId);
-                this.io.emit(Events.INDEX_REMOVE, payload);
+                this.notifyUi(Events.INDEX_REMOVE, payload);
                 this.onUiUpdate();
             } catch (error) {
                 console.error("[peer] incoming index remove failed", error.message);
@@ -129,7 +129,7 @@ export class PeerNetworkService {
                     return;
                 }
                 await this.fileIndexService.upsertRemoteFiles(payload.peer, [payload.file]);
-                this.io.emit(Events.INDEX_UPSERT, payload);
+                this.notifyUi(Events.INDEX_UPSERT, payload);
                 this.onUiUpdate();
             } catch (error) {
                 console.error("[peer] outbound index upsert failed", error.message);
@@ -142,7 +142,7 @@ export class PeerNetworkService {
                     return;
                 }
                 await this.fileIndexService.removeRemotePeerFiles(payload.peerId);
-                this.io.emit(Events.INDEX_REMOVE, payload);
+                this.notifyUi(Events.INDEX_REMOVE, payload);
                 this.onUiUpdate();
             } catch (error) {
                 console.error("[peer] outbound index remove failed", error.message);
@@ -196,7 +196,7 @@ export class PeerNetworkService {
             peerId: this.selfPeer.peerId,
             peerName: this.selfPeer.peerName
         };
-        this.io.emit(Events.INDEX_UPSERT, { peer, file });
+        this.notifyUi(Events.INDEX_UPSERT, { peer, file });
 
         for (const socket of this.peerSockets.values()) {
             socket.emit(Events.INDEX_UPSERT, { peer, file });
@@ -204,7 +204,7 @@ export class PeerNetworkService {
     }
 
     async broadcastPeerOffline(peerId) {
-        this.io.emit(Events.INDEX_REMOVE, { peerId });
+        this.notifyUi(Events.INDEX_REMOVE, { peerId });
         for (const socket of this.peerSockets.values()) {
             socket.emit(Events.INDEX_REMOVE, { peerId });
         }
@@ -238,6 +238,15 @@ export class PeerNetworkService {
             };
         } catch (error) {
             return { ok: false, error: error.message || "Chunk read failed" };
+        }
+    }
+
+    notifyUi(eventName, payload) {
+        if (!this.io?.sockets?.sockets) return;
+        for (const [_, socket] of this.io.sockets.sockets) {
+            if (socket.handshake.auth?.role === "ui") {
+                socket.emit(eventName, payload);
+            }
         }
     }
 }

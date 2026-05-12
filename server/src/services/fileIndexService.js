@@ -72,6 +72,10 @@ export class FileIndexService {
     }
 
     async upsertRemoteFiles(peer, files) {
+        if (peer.peerId === this.peerId) {
+            return; // Ignore echo updates of our own files
+        }
+
         for (const item of files) {
             await FileEntry.findOneAndUpdate(
                 { fileId: item.fileId },
