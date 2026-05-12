@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import socketLogo from "../assets/socket_logo.png";
 
-export function Shell({ children, room }) {
+export function Shell({ children }) {
     return (
         <div className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-8 md:px-10">
             {/* Header */}
@@ -30,16 +30,8 @@ export function Shell({ children, room }) {
                     <div className="flex items-center gap-3">
                         {/* Status pill */}
                         <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-surface px-4 py-2">
-                            <div className={`h-1.5 w-1.5 rounded-full ${room?.active ? "bg-success" : "bg-yellow-500/70"}`} />
-                            {room?.active ? (
-                                <p className="font-mono text-xs text-text-secondary">
-                                    <span className="text-accent font-medium">{room.roomId}</span>
-                                    <span className="mx-1.5 text-text-secondary">|</span>
-                                    <span className="text-text-secondary">{room.isHost ? "Host" : "Member"}</span>
-                                </p>
-                            ) : (
-                                <p className="font-mono text-xs text-text-secondary">No active room</p>
-                            )}
+                            <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                            <p className="font-mono text-xs text-text-secondary">Network Discovery Active</p>
                         </div>
 
                         {/* Quit Button */}
@@ -63,6 +55,3 @@ export function Shell({ children, room }) {
         </div>
     );
 }
-
-
-

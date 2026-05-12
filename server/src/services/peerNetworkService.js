@@ -3,12 +3,11 @@ import { io as createClient } from "socket.io-client";
 import { Events, Roles } from "../../../shared/peerProtocol.js";
 
 export class PeerNetworkService {
-    constructor({ selfPeer, io, fileIndexService, peerRegistry, roomService, onUiUpdate }) {
+    constructor({ selfPeer, io, fileIndexService, peerRegistry, onUiUpdate }) {
         this.selfPeer = selfPeer;
         this.io = io;
         this.fileIndexService = fileIndexService;
         this.peerRegistry = peerRegistry;
-        this.roomService = roomService;
         this.onUiUpdate = onUiUpdate;
         this.peerSockets = new Map();
     }
@@ -16,20 +15,6 @@ export class PeerNetworkService {
     wireIncomingPeerSocketHandlers(socket) {
         const remotePeerId = socket.handshake.auth?.peerId;
         const remotePeerName = socket.handshake.auth?.peerName || "Unknown";
-        const roomId = socket.handshake.auth?.roomId;
-        const roomKeyHash = socket.handshake.auth?.roomKeyHash;
-
-        const authResult = this.roomService.authorizePeerHandshake({
-            peerId: remotePeerId,
-            roomId,
-            roomKeyHash
-        });
-
-        if (!authResult.ok) {
-            socket.emit("peer:unauthorized", { reason: authResult.reason });
-            socket.disconnect(true);
-            return;
-        }
 
         if (remotePeerId) {
             this.peerRegistry.upsert({
@@ -37,8 +22,7 @@ export class PeerNetworkService {
                 peerName: remotePeerName,
                 host: socket.handshake.address,
                 socketPort: null,
-                serverPort: null,
-                roomId
+                serverPort: null
             });
             // Store inbound socket so getSocketByPeerId can find it for transfers
             if (!this.peerSockets.has(remotePeerId)) {
@@ -108,21 +92,13 @@ export class PeerNetworkService {
             return;
         }
 
-        if (!this.roomService.canConnectToPeer(peer)) {
-            return;
-        }
-
-        const auth = this.roomService.getPeerAuth();
-
         const socket = createClient(`http://${peer.host}:${peer.socketPort}`, {
             reconnection: true,
             timeout: 5000,
             auth: {
                 role: Roles.PEER,
                 peerId: this.selfPeer.peerId,
-                peerName: this.selfPeer.peerName,
-                roomId: auth.roomId,
-                roomKeyHash: auth.roomKeyHash
+                peerName: this.selfPeer.peerName
             }
         });
 
