@@ -87,7 +87,7 @@ export class PeerNetworkService {
         });
     }
 
-    async connectToPeer(peer) {
+    async connectToPeer(peer, roomCode) {
         if (peer.peerId === this.selfPeer.peerId || this.peerSockets.has(peer.peerId)) {
             return;
         }
@@ -98,7 +98,8 @@ export class PeerNetworkService {
             auth: {
                 role: Roles.PEER,
                 peerId: this.selfPeer.peerId,
-                peerName: this.selfPeer.peerName
+                peerName: this.selfPeer.peerName,
+                roomCode: roomCode
             }
         });
 
@@ -248,5 +249,14 @@ export class PeerNetworkService {
                 socket.emit(eventName, payload);
             }
         }
+    }
+
+    disconnectAllPeers() {
+        for (const [peerId, socket] of this.peerSockets.entries()) {
+            socket.disconnect();
+            this.peerRegistry.markOffline(peerId);
+        }
+        this.peerSockets.clear();
+        this.onUiUpdate();
     }
 }

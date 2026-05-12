@@ -1,6 +1,6 @@
 import express from "express";
 
-export function createApiRouter({ peerRegistry, fileIndexService, transferService, peerNetworkService }) {
+export function createApiRouter({ peerRegistry, fileIndexService, transferService, peerNetworkService, roomService }) {
     const router = express.Router();
 
     router.get("/health", (_req, res) => {
@@ -9,6 +9,46 @@ export function createApiRouter({ peerRegistry, fileIndexService, transferServic
 
     router.get("/peers", (_req, res) => {
         res.json({ peers: peerRegistry.list() });
+    });
+
+    // Room Routes
+    router.get("/room/status", (_req, res) => {
+        res.json({ room: roomService.getRoom() });
+    });
+
+    router.post("/room/create", (_req, res) => {
+        const code = roomService.createRoom();
+        // Disconnect any existing peers from previous session
+        peerNetworkService.disconnectAllPeers();
+        res.json({ room: { code, isHost: true } });
+    });
+
+    router.post("/room/join", async (req, res, next) => {
+        try {
+            const { code } = req.body;
+            if (!code) return res.status(400).json({ error: "Room code required" });
+
+            roomService.joinRoom(code);
+            peerNetworkService.disconnectAllPeers(); // Clear old connections
+
+            // Attempt to connect to all known peers with this room code
+            const peers = peerRegistry.list();
+            for (const peer of peers) {
+                await peerNetworkService.connectToPeer(peer, code).catch(() => {});
+            }
+
+            res.json({ room: { code, isHost: false } });
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    router.post("/room/leave", async (_req, res) => {
+        roomService.leaveRoom();
+        peerNetworkService.disconnectAllPeers();
+        // Clear remote files from the index since we left the room
+        await fileIndexService.clearRemoteFiles();
+        res.json({ ok: true });
     });
 
     router.get("/files", async (_req, res, next) => {

@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { fetchFiles, fetchPeers, fetchTransfers } from "../api";
+import { fetchFiles, fetchPeers, fetchTransfers, fetchRoomStatus } from "../api";
 
 export function useRealtimeState() {
     const [peers, setPeers] = useState([]);
     const [files, setFiles] = useState([]);
     const [transfers, setTransfers] = useState([]);
+    const [room, setRoom] = useState(null);
 
     useEffect(() => {
         let mounted = true;
 
         async function bootstrap() {
-            const [nextPeers, nextFiles, nextTransfers] = await Promise.all([
+            const [nextPeers, nextFiles, nextTransfers, nextRoom] = await Promise.all([
                 fetchPeers(),
                 fetchFiles(),
-                fetchTransfers()
+                fetchTransfers(),
+                fetchRoomStatus()
             ]);
 
             if (!mounted) {
@@ -24,6 +26,7 @@ export function useRealtimeState() {
             setPeers(nextPeers);
             setFiles(nextFiles);
             setTransfers(nextTransfers);
+            setRoom(nextRoom);
         }
 
         bootstrap().catch(() => {
@@ -76,8 +79,8 @@ export function useRealtimeState() {
     }, []);
 
     return useMemo(
-        () => ({ peers, files, transfers, setPeers, setFiles, setTransfers }),
-        [peers, files, transfers]
+        () => ({ peers, files, transfers, room, setPeers, setFiles, setTransfers, setRoom }),
+        [peers, files, transfers, room]
     );
 }
 

@@ -11,6 +11,7 @@ import { FileIndexService } from "./services/fileIndexService.js";
 import { PeerRegistry } from "./services/peerRegistry.js";
 import { PeerNetworkService } from "./services/peerNetworkService.js";
 import { TransferService } from "./services/transferService.js";
+import { RoomService } from "./services/roomService.js";
 import { createApiRouter } from "./routes/api.js";
 import { Events, Roles } from "../../shared/peerProtocol.js";
 
@@ -48,6 +49,8 @@ console.log("[startup] using in-memory file storage");
 await fileIndexService.clearAll();
 console.log("[startup] cleared previous session local file index");
 
+const roomService = new RoomService();
+
 const peerNetworkService = new PeerNetworkService({
     selfPeer,
     io,
@@ -68,11 +71,14 @@ const discovery = new DiscoveryService({
     selfPeer,
     onPeerSeen: async (peer) => {
         try {
-            const wasNew = !peerRegistry.get(peer.peerId);
             peerRegistry.upsert(peer);
             
-            if (wasNew || !peerNetworkService.getSocketByPeerId(peer.peerId)) {
-                await peerNetworkService.connectToPeer(peer);
+            // Only try connecting if we are in a room and NOT the host
+            // (If we are the host, we wait for others to join our room)
+            if (roomService.isInRoom() && !roomService.isHost()) {
+                if (!peerNetworkService.getSocketByPeerId(peer.peerId)) {
+                    await peerNetworkService.connectToPeer(peer, roomService.getRoomCode()).catch(() => {});
+                }
             }
             emitUiSnapshot();
         } catch (error) {
@@ -116,13 +122,36 @@ app.use(
         peerRegistry,
         fileIndexService,
         transferService,
-        peerNetworkService
+        peerNetworkService,
+        roomService
     })
 );
 
 app.use((error, _req, res, _next) => {
     console.error("[api] error:", error.message || error);
     res.status(500).json({ error: error.message || "Unexpected server error" });
+});
+
+io.use((socket, next) => {
+    const role = socket.handshake.auth?.role;
+    if (role === Roles.UI) return next();
+
+    if (role === Roles.PEER) {
+        const theirRoomCode = socket.handshake.auth?.roomCode;
+        const myRoomCode = roomService.getRoomCode();
+
+        if (!myRoomCode) {
+            return next(new Error("Not in a room"));
+        }
+
+        if (theirRoomCode !== myRoomCode) {
+            return next(new Error("Invalid room code"));
+        }
+
+        return next();
+    }
+
+    next(new Error("Invalid role"));
 });
 
 io.on("connection", (socket) => {

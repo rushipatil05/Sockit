@@ -100,6 +100,10 @@ export class FileIndexService {
         await FileEntry.deleteMany({ ownerPeerId: peerId, isLocal: false });
     }
 
+    async clearRemoteFiles() {
+        await FileEntry.deleteMany({ isLocal: false });
+    }
+
     async getFileById(fileId) {
         const doc = await FileEntry.findOne({ fileId }).lean();
         return doc || null;
