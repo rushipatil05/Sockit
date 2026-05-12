@@ -1,9 +1,8 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
-import { fetchFiles, fetchPeers, fetchRoom, fetchTransfers } from "../api";
+import { fetchFiles, fetchPeers, fetchTransfers } from "../api";
 
 export function useRealtimeState() {
-    const [room, setRoom] = useState({ active: false });
     const [peers, setPeers] = useState([]);
     const [files, setFiles] = useState([]);
     const [transfers, setTransfers] = useState([]);
@@ -12,26 +11,19 @@ export function useRealtimeState() {
         let mounted = true;
 
         async function bootstrap() {
-            const [nextPeers, nextRoom] = await Promise.all([fetchPeers(), fetchRoom()]);
+            const [nextPeers, nextFiles, nextTransfers] = await Promise.all([
+                fetchPeers(),
+                fetchFiles(),
+                fetchTransfers()
+            ]);
 
             if (!mounted) {
                 return;
             }
 
             setPeers(nextPeers);
-            setRoom(nextRoom || { active: false });
-
-            if (nextRoom?.active) {
-                const [nextFiles, nextTransfers] = await Promise.all([fetchFiles(), fetchTransfers()]);
-                if (!mounted) {
-                    return;
-                }
-                setFiles(nextFiles);
-                setTransfers(nextTransfers);
-            } else {
-                setFiles([]);
-                setTransfers([]);
-            }
+            setFiles(nextFiles);
+            setTransfers(nextTransfers);
         }
 
         bootstrap().catch(() => {
@@ -47,9 +39,6 @@ export function useRealtimeState() {
 
         socket.on("peer:state", (payload) => {
             setPeers(payload?.peers || []);
-            if (payload?.room) {
-                setRoom(payload.room);
-            }
         });
 
         socket.on("index:upsert", () => {
@@ -87,8 +76,8 @@ export function useRealtimeState() {
     }, []);
 
     return useMemo(
-        () => ({ room, setRoom, peers, files, transfers, setPeers, setFiles, setTransfers }),
-        [room, peers, files, transfers]
+        () => ({ peers, files, transfers, setPeers, setFiles, setTransfers }),
+        [peers, files, transfers]
     );
 }
 
@@ -101,5 +90,3 @@ function mergeTransfer(previous, next) {
     copy[index] = { ...copy[index], ...next };
     return copy;
 }
-
-

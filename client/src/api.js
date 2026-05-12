@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api"
@@ -7,21 +7,6 @@ const api = axios.create({
 export async function fetchPeers() {
     const { data } = await api.get("/peers");
     return data.peers;
-}
-
-export async function fetchRoom() {
-    const { data } = await api.get("/room");
-    return data.room;
-}
-
-export async function createRoom(payload) {
-    const { data } = await api.post("/room/create", payload);
-    return data.room;
-}
-
-export async function joinRoom(payload) {
-    const { data } = await api.post("/room/join", payload);
-    return data.room;
 }
 
 export async function fetchFiles() {
@@ -43,5 +28,3 @@ export async function startDownload(payload) {
     const { data } = await api.post("/transfers/download", payload);
     return data.transfer;
 }
-
-

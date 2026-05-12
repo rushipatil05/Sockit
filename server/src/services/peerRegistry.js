@@ -25,7 +25,16 @@ export class PeerRegistry {
     }
 
     list() {
-        return Array.from(this.peers.values()).sort((a, b) => b.lastSeen - a.lastSeen);
+        const now = Date.now();
+        // Automatically remove peers that haven't sent a heartbeat in 15 seconds
+        for (const [id, peer] of this.peers.entries()) {
+            if (now - peer.lastSeen > 15000) {
+                this.peers.delete(id);
+            }
+        }
+        return Array.from(this.peers.values())
+            .filter(p => p.status === "online")
+            .sort((a, b) => b.lastSeen - a.lastSeen);
     }
 
     get(peerId) {

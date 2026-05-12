@@ -90,6 +90,23 @@ const discovery = new DiscoveryService({
     }
 });
 
+setInterval(() => {
+    const now = Date.now();
+    let pruned = false;
+    
+    // Manually check the raw map to ensure we trigger onPeerLeft for UI updates
+    for (const [id, peer] of peerRegistry.peers.entries()) {
+        if (now - peer.lastSeen > 15000) {
+            discovery.onPeerLeft(id);
+            pruned = true;
+        }
+    }
+    
+    if (pruned) {
+        emitUiSnapshot();
+    }
+}, 5000);
+
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
