@@ -6,7 +6,6 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "./config.js";
-import { connectDb, disconnectDb } from "./db.js";
 import { DiscoveryService } from "./services/discoveryService.js";
 import { FileIndexService } from "./services/fileIndexService.js";
 import { PeerRegistry } from "./services/peerRegistry.js";
@@ -40,12 +39,12 @@ const fileIndexService = new FileIndexService({
     peerName: selfPeer.peerName
 });
 
-await connectDb(config.mongoUri);
-
 const sharedDir = path.resolve(process.cwd(), config.sharedFilesDir);
 const downloadDir = path.resolve(process.cwd(), config.downloadDir);
 await fs.mkdir(sharedDir, { recursive: true });
 await fs.mkdir(downloadDir, { recursive: true });
+
+console.log("[startup] using in-memory file storage");
 
 // Clear this peer's stale local file index from a previous session
 await fileIndexService.clearAll();
@@ -119,6 +118,7 @@ app.use(
 );
 
 app.use((error, _req, res, _next) => {
+    console.error("[api] error:", error.message || error);
     res.status(500).json({ error: error.message || "Unexpected server error" });
 });
 
