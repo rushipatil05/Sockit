@@ -148,6 +148,24 @@ export class PeerNetworkService {
                 console.error("[peer] outbound index remove failed", error.message);
             }
         });
+
+        socket.on(Events.INDEX_REQUEST, async (_, callback) => {
+            try {
+                const localFiles = await this.fileIndexService.getLocalFiles();
+                callback?.({ ok: true, files: localFiles });
+            } catch (error) {
+                callback?.({ ok: false, error: error.message || "index request failed" });
+            }
+        });
+
+        socket.on(Events.TRANSFER_PULL_REQUEST, async (payload, callback) => {
+            try {
+                const result = await this.handlePullRequest(payload);
+                callback(result);
+            } catch (error) {
+                callback({ ok: false, error: error.message || "pull request failed" });
+            }
+        });
     }
 
     getSocketByPeerId(peerId) {
