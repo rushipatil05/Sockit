@@ -3,6 +3,13 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { app, BrowserWindow, dialog, ipcMain, Notification, shell } = require("electron");
 
+// Load environment variables from .env file
+try {
+    require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+} catch (e) {
+    console.warn("Dotenv could not be loaded, using defaults.");
+}
+
 function resolveWindowIcon() {
     if (!app.isPackaged) {
         return path.join(__dirname, "../client/src/assets/socket_logo.png");
@@ -31,7 +38,6 @@ function startServer() {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1",
         NODE_ENV: "production",
-        MONGO_URI: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/nodeshare",
         APP_NAME: process.env.APP_NAME || "NodeShare",
         UDP_PORT: process.env.UDP_PORT || "41234",
         UDP_BROADCAST_ADDR: process.env.UDP_BROADCAST_ADDR || "255.255.255.255",
@@ -42,6 +48,8 @@ function startServer() {
         DOWNLOAD_DIR: path.join(app.getPath("downloads"), "SocketShare"),
         SHARED_FILES_DIR: path.join(app.getPath("userData"), "uploads")
     };
+
+    console.log(`[main] starting server with ports: API=${env.SERVER_PORT}, SOCKET=${env.SOCKET_PORT}`);
 
     serverProcess = spawn(process.execPath, [serverPath], {
         env,
@@ -82,9 +90,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    if (app.isPackaged) {
-        startServer();
-    }
+    startServer();
     createWindow();
 
     app.on("activate", () => {

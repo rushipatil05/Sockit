@@ -6,7 +6,6 @@ dotenv.config();
 
 export const config = {
     appName: process.env.APP_NAME || "NodeShare",
-    mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/nodeshare",
     nodeEnv: process.env.NODE_ENV || "development",
     udpPort: Number(process.env.UDP_PORT || 41234),
     udpBroadcastAddr: process.env.UDP_BROADCAST_ADDR || "255.255.255.255",

@@ -10,48 +10,13 @@
     ],
     "scripts": {
         "dev": "concurrently -n server,client,electron -c cyan,green,magenta \"npm:dev -w server\" \"npm:dev -w client\" \"npm:dev -w electron\"",
-        "build": "npm run build -w server --if-present && npm run build -w client --if-present && npm run build -w electron --if-present",
+        "build": "npm run build -w client --if-present",
         "lint": "npm run lint -w server && npm run lint -w client",
-        "start": "npm run start -w electron",
-        "build:exe": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false win_codesign_skip=true electron-builder --win --publish never"        
+        "start": "npm run start -w electron"
     },
     "devDependencies": {
         "concurrently": "^9.0.1",
-        "electron-builder": "^26.8.1",
         "wait-on": "^8.0.1"
     },
-    "build": {
-        "appId": "com.socketshare.app",
-        "productName": "NodeShare",
-        "asar": false,
-        "directories": {
-            "output": "release-desktop"
-        },
-        "files": [
-            "electron/**/*",
-            "server/**/*",
-            "!server/uploads/**",
-            "!server/downloads/**",
-            "client/dist/**/*",
-            "shared/**/*",
-            "node_modules/**/*",
-            "!node_modules/.cache/**",
-            "!node_modules/.bin/**",
-            "!node_modules/electron/**",
-            "!node_modules/electron-builder/**",
-            "!node_modules/vite/**",
-            "!node_modules/@vitejs/**",
-            "!node_modules/typescript/**",
-            "!node_modules/nodemon/**",
-            "!node_modules/concurrently/**",
-            "!node_modules/wait-on/**",
-            "!node_modules/eslint/**",
-            "!node_modules/@eslint/**",
-            "!node_modules/prettier/**",
-            "package.json"
-        ],
-        "win": {
-            "target": "portable"
-        }
-    }
+    "description": "P2P LAN File Sharing"
 }
