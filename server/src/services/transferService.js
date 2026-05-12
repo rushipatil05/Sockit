@@ -68,7 +68,7 @@ export class TransferService {
         try {
             while (true) {
                 const ack = await socket
-                    .timeout(10000)
+                    .timeout(30000)
                     .emitWithAck(Events.TRANSFER_PULL_REQUEST, { fileId, offset, chunkSize: 256 * 1024 });
 
                 // Some Socket.IO transports may return ack wrapped in a single-item array.
