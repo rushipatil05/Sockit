@@ -9,7 +9,7 @@
         "electron"
     ],
     "scripts": {
-        "dev": "concurrently -n server,client,electron -c cyan,green,magenta \"npm:dev -w server\" \"npm:dev -w client\" \"cross-env SKIP_SERVER=true npm:dev -w electron\"",
+        "dev": "concurrently -n server,client,electron -c cyan,green,magenta \"npm run dev -w server\" \"npm run dev -w client\" \"cross-env SKIP_SERVER=true npm run dev -w electron\"",
         "build": "npm run build -w client --if-present",
         "lint": "npm run lint -w server && npm run lint -w client",
         "start": "npm run start -w electron"

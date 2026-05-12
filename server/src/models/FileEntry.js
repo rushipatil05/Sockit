@@ -1,6 +1,35 @@
 import { inMemoryStore } from "../services/inMemoryStore.js";
 
 /**
+ * Document wrapper for in-memory store that supports save() method.
+ */
+class InMemoryDocument {
+    constructor(data) {
+        Object.assign(this, data);
+    }
+
+    async save() {
+        // Update in store
+        await inMemoryStore.findOneAndUpdate(
+            { fileId: this.fileId },
+            this.toObject(),
+            { upsert: true }
+        );
+        return this;
+    }
+
+    toObject() {
+        const obj = {};
+        for (const key in this) {
+            if (typeof this[key] !== "function") {
+                obj[key] = this[key];
+            }
+        }
+        return obj;
+    }
+}
+
+/**
  * Chainable query wrapper for in-memory store operations.
  * Mimics Mongoose Query object.
  */
@@ -51,35 +80,6 @@ class InMemoryQuery {
             });
         })();
         return this;
-    }
-}
-
-/**
- * Document wrapper for in-memory store that supports save() method.
- */
-class InMemoryDocument {
-    constructor(data) {
-        Object.assign(this, data);
-    }
-
-    async save() {
-        // Update in store
-        await inMemoryStore.findOneAndUpdate(
-            { fileId: this.fileId },
-            this.toObject(),
-            { upsert: true }
-        );
-        return this;
-    }
-
-    toObject() {
-        const obj = {};
-        for (const key in this) {
-            if (typeof this[key] !== "function") {
-                obj[key] = this[key];
-            }
-        }
-        return obj;
     }
 }
 
