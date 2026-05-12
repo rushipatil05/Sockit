@@ -1,28 +1,55 @@
-import { isDbConnected } from "../db.js";
 import { inMemoryStore } from "../services/inMemoryStore.js";
 
 /**
  * Chainable query wrapper for in-memory store operations.
+ * Mimics Mongoose Query object.
  */
 class InMemoryQuery {
-    constructor(docs) {
-        this.docs = docs;
+    constructor(promiseOrDocs) {
+        this.promise = Promise.resolve(promiseOrDocs);
+    }
+
+    async then(resolve, reject) {
+        try {
+            const result = await this.promise;
+            return resolve(result);
+        } catch (err) {
+            if (reject) return reject(err);
+            throw err;
+        }
     }
 
     lean() {
-        return this.docs;
+        // For in-memory, everything is already a POJO or we can toObject it.
+        // We'll wrap the current promise to return raw objects.
+        const originalPromise = this.promise;
+        this.promise = (async () => {
+            const result = await originalPromise;
+            if (Array.isArray(result)) {
+                return result.map(doc => doc instanceof InMemoryDocument ? doc.toObject() : doc);
+            }
+            return result instanceof InMemoryDocument ? result.toObject() : result;
+        })();
+        return this;
     }
 
     sort(orderBy) {
-        const sortKey = Object.keys(orderBy)[0];
-        const sortDir = orderBy[sortKey];
-        this.docs.sort((a, b) => {
-            const aVal = a[sortKey];
-            const bVal = b[sortKey];
-            if (aVal < bVal) return sortDir === 1 ? -1 : 1;
-            if (aVal > bVal) return sortDir === 1 ? 1 : -1;
-            return 0;
-        });
+        const originalPromise = this.promise;
+        this.promise = (async () => {
+            const docs = await originalPromise;
+            if (!Array.isArray(docs)) return docs;
+            
+            const sortKey = Object.keys(orderBy)[0];
+            const sortDir = orderBy[sortKey];
+            
+            return [...docs].sort((a, b) => {
+                const aVal = a[sortKey];
+                const bVal = b[sortKey];
+                if (aVal < bVal) return sortDir === 1 ? -1 : 1;
+                if (aVal > bVal) return sortDir === 1 ? 1 : -1;
+                return 0;
+            });
+        })();
         return this;
     }
 }
@@ -39,7 +66,7 @@ class InMemoryDocument {
         // Update in store
         await inMemoryStore.findOneAndUpdate(
             { fileId: this.fileId },
-            this,
+            this.toObject(),
             { upsert: true }
         );
         return this;
@@ -48,7 +75,7 @@ class InMemoryDocument {
     toObject() {
         const obj = {};
         for (const key in this) {
-            if (key !== "save" && key !== "toObject") {
+            if (typeof this[key] !== "function") {
                 obj[key] = this[key];
             }
         }
@@ -65,9 +92,12 @@ export const FileEntry = {
         return new InMemoryDocument(doc);
     },
 
-    async findOne(query) {
-        const doc = inMemoryStore.findOne(query);
-        return doc ? new InMemoryDocument(doc) : null;
+    findOne(query) {
+        const promise = (async () => {
+            const doc = await inMemoryStore.findOne(query);
+            return doc ? new InMemoryDocument(doc) : null;
+        })();
+        return new InMemoryQuery(promise);
     },
 
     async findOneAndUpdate(query, update, options = {}) {
@@ -76,15 +106,11 @@ export const FileEntry = {
     },
 
     find(query) {
-        const allDocs = inMemoryStore.find(query);
-        return {
-            lean() {
-                return allDocs;
-            },
-            sort(orderBy) {
-                return new InMemoryQuery(allDocs).sort(orderBy);
-            }
-        };
+        const promise = (async () => {
+            const docs = await inMemoryStore.find(query);
+            return docs.map(d => new InMemoryDocument(d));
+        })();
+        return new InMemoryQuery(promise);
     },
 
     async deleteMany(query) {

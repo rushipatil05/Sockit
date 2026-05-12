@@ -90,7 +90,11 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    startServer();
+    if (process.env.SKIP_SERVER !== "true") {
+        startServer();
+    } else {
+        console.log("[main] skipping server start as SKIP_SERVER=true");
+    }
     createWindow();
 
     app.on("activate", () => {
