@@ -1,3 +1,4 @@
+import { open } from "node:fs/promises";
 import { io as createClient } from "socket.io-client";
 import { Events, Roles } from "../../../shared/peerProtocol.js";
 
@@ -223,7 +224,6 @@ export class PeerNetworkService {
                 return { ok: false, error: "File not found on this peer." };
             }
 
-            const { open } = await import("node:fs/promises");
             const handle = await open(file.path, "r");
             const buffer = Buffer.alloc(chunkSize);
             const { bytesRead } = await handle.read(buffer, 0, chunkSize, offset);
