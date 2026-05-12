@@ -154,7 +154,6 @@ app.listen(config.serverPort, () => {
 const shutdown = async () => {
     await peerNetworkService.broadcastPeerOffline(selfPeer.peerId);
     discovery.stop();
-    await disconnectDb();
     process.exit(0);
 };
 
