@@ -15,7 +15,7 @@ export class TransferService {
         return Array.from(this.transfers.values()).sort((a, b) => b.startedAt - a.startedAt);
     }
 
-    async downloadFile({ peerId, fileId, saveDir }) {
+    async downloadFile({ peerId, fileId, savePath }) {
         const file = await this.fileIndexService.getFileById(fileId);
         if (!file) {
             throw new Error("File metadata not found.");
@@ -26,10 +26,15 @@ export class TransferService {
             throw new Error("Peer is not connected.");
         }
 
-        const outputDir = path.resolve(saveDir || this.downloadDir);
-        await fs.mkdir(outputDir, { recursive: true });
-
-        const targetPath = path.join(outputDir, file.name);
+        let targetPath;
+        if (savePath) {
+            targetPath = path.resolve(savePath);
+            await fs.mkdir(path.dirname(targetPath), { recursive: true });
+        } else {
+            const outputDir = path.resolve(this.downloadDir);
+            await fs.mkdir(outputDir, { recursive: true });
+            targetPath = path.join(outputDir, file.name);
+        }
         let offset = 0;
         let resume = false;
 

@@ -139,6 +139,16 @@ ipcMain.handle("socket-share:pick-folder", async () => {
     return result.filePaths[0];
 });
 
+ipcMain.handle("socket-share:pick-save-path", async (event, defaultName) => {
+    const result = await dialog.showSaveDialog({
+        defaultPath: defaultName
+    });
+    if (result.canceled) {
+        return null;
+    }
+    return result.filePath;
+});
+
 ipcMain.handle("socket-share:notify", async (_event, payload) => {
     if (Notification.isSupported()) {
         new Notification({

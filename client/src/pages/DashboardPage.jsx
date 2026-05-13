@@ -22,11 +22,17 @@ export function DashboardPage({ room, files, transfers, onTransferQueued, onUplo
 
     async function handleDownload(file) {
         try {
+            let savePath;
+            if (window.socketShare?.pickSavePath) {
+                savePath = await window.socketShare.pickSavePath(file.name);
+                if (!savePath) return; // User canceled
+            }
+            
             setBusyId(file.fileId);
-            await startDownload({ peerId: file.ownerPeerId, fileId: file.fileId });
+            await startDownload({ peerId: file.ownerPeerId, fileId: file.fileId, savePath });
             onTransferQueued?.();
         } finally {
-            setBusyId(null);
+            setBusyId((currentId) => (currentId === file.fileId ? null : currentId));
         }
     }
 

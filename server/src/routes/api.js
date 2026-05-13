@@ -81,12 +81,12 @@ export function createApiRouter({ peerRegistry, fileIndexService, transferServic
 
     router.post("/transfers/download", async (req, res, next) => {
         try {
-            const { peerId, fileId, saveDir } = req.body;
+            const { peerId, fileId, savePath } = req.body;
             if (!peerId || !fileId) {
                 return res.status(400).json({ error: "peerId and fileId are required" });
             }
 
-            const transfer = await transferService.downloadFile({ peerId, fileId, saveDir });
+            const transfer = await transferService.downloadFile({ peerId, fileId, savePath });
             res.status(202).json({ transfer });
         } catch (error) {
             next(error);
