@@ -75,7 +75,7 @@ const discovery = new DiscoveryService({
             
             // Only try connecting if we are in a room and NOT the host
             // (If we are the host, we wait for others to join our room)
-            if (roomService.isInRoom() && !roomService.isHost()) {
+            if (roomService.isInRoom() && !roomService.isHost) {
                 if (!peerNetworkService.getSocketByPeerId(peer.peerId)) {
                     await peerNetworkService.connectToPeer(peer, roomService.getRoomCode()).catch(() => {});
                 }
