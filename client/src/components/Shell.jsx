@@ -36,7 +36,7 @@ export function Shell({ children }) {
 
                         {/* Quit Button */}
                         <button
-                            onClick={() => window.socketShare?.quitApp()}
+                            onClick={() => window.sockit?.quitApp()}
                             className="flex h-9 w-9 items-center justify-center rounded-full border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-200"
                             title="Close Application"
                         >

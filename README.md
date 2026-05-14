@@ -1,6 +1,6 @@
-# 🚀 SocketShare
+# 🚀 Sockit
 
-**SocketShare** is a powerful, offline-first, LAN-based peer-to-peer file sharing application. No internet, no cloud, no central server — just direct, lightning-fast transfers between devices on your local network.
+**Sockit** is a powerful, offline-first, LAN-based peer-to-peer file sharing application. No internet, no cloud, no central server — just direct, lightning-fast transfers between devices on your local network.
 
 ---
 

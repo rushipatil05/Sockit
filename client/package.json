@@ -1,5 +1,5 @@
 {
-    "name": "socket-share-client",
+    "name": "sockit-client",
     "version": "1.0.0",
     "private": true,
     "type": "module",

@@ -1,4 +1,4 @@
-﻿import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { shareFile } from "../api";
 import { Section } from "../components/Panel";
@@ -26,11 +26,11 @@ export function UploadPage({ onUploaded }) {
     );
 
     async function handleChooseFile() {
-        if (!window.socketShare?.pickFile) {
+        if (!window.sockit?.pickFile) {
             setMessage("Electron file picker unavailable. Run inside desktop app.");
             return;
         }
-        const filePath = await window.socketShare.pickFile();
+        const filePath = await window.sockit.pickFile();
         await doShare(filePath);
     }
 

@@ -23,8 +23,8 @@ export function DashboardPage({ room, files, transfers, onTransferQueued, onUplo
     async function handleDownload(file) {
         try {
             let savePath;
-            if (window.socketShare?.pickSavePath) {
-                savePath = await window.socketShare.pickSavePath(file.name);
+            if (window.sockit?.pickSavePath) {
+                savePath = await window.sockit.pickSavePath(file.name);
                 if (!savePath) return; // User canceled
             }
             
@@ -55,11 +55,11 @@ export function DashboardPage({ room, files, transfers, onTransferQueued, onUplo
     );
 
     async function handlePickFile() {
-        if (!window.socketShare?.pickFile) {
+        if (!window.sockit?.pickFile) {
             setUploadMessage("Electron API unavailable. Run inside desktop app.");
             return;
         }
-        const filePath = await window.socketShare.pickFile();
+        const filePath = await window.sockit.pickFile();
         await doShare(filePath);
     }
 

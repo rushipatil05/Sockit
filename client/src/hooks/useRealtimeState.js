@@ -58,7 +58,7 @@ export function useRealtimeState() {
 
         socket.on("transfer:complete", (state) => {
             setTransfers((prev) => mergeTransfer(prev, state));
-            window.socketShare?.notify?.({
+            window.sockit?.notify?.({
                 title: "Download complete",
                 body: `${state.fileName} saved successfully`
             });
@@ -66,7 +66,7 @@ export function useRealtimeState() {
 
         socket.on("transfer:error", (state) => {
             setTransfers((prev) => mergeTransfer(prev, state));
-            window.socketShare?.notify?.({
+            window.sockit?.notify?.({
                 title: "Transfer failed",
                 body: state.error || state.fileName || "File transfer failed"
             });

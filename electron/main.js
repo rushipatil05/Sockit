@@ -45,7 +45,7 @@ function startServer() {
         SOCKET_PORT: process.env.SOCKET_PORT || "5000",
         PEER_NAME: process.env.PEER_NAME || process.env.COMPUTERNAME || "NodeShare-PC",
         PEER_ID: process.env.PEER_ID || require("node:crypto").randomUUID(),
-        DOWNLOAD_DIR: path.join(app.getPath("downloads"), "SocketShare"),
+        DOWNLOAD_DIR: path.join(app.getPath("downloads"), "Sockit"),
         SHARED_FILES_DIR: path.join(app.getPath("userData"), "uploads")
     };
 
@@ -119,7 +119,7 @@ app.on("before-quit", () => {
     }
 });
 
-ipcMain.handle("socket-share:pick-file", async () => {
+ipcMain.handle("sockit:pick-file", async () => {
     const result = await dialog.showOpenDialog({
         properties: ["openFile"]
     });
@@ -129,7 +129,7 @@ ipcMain.handle("socket-share:pick-file", async () => {
     return result.filePaths[0];
 });
 
-ipcMain.handle("socket-share:pick-folder", async () => {
+ipcMain.handle("sockit:pick-folder", async () => {
     const result = await dialog.showOpenDialog({
         properties: ["openDirectory"]
     });
@@ -139,7 +139,7 @@ ipcMain.handle("socket-share:pick-folder", async () => {
     return result.filePaths[0];
 });
 
-ipcMain.handle("socket-share:pick-save-path", async (event, defaultName) => {
+ipcMain.handle("sockit:pick-save-path", async (event, defaultName) => {
     const result = await dialog.showSaveDialog({
         defaultPath: defaultName
     });
@@ -149,7 +149,7 @@ ipcMain.handle("socket-share:pick-save-path", async (event, defaultName) => {
     return result.filePath;
 });
 
-ipcMain.handle("socket-share:notify", async (_event, payload) => {
+ipcMain.handle("sockit:notify", async (_event, payload) => {
     if (Notification.isSupported()) {
         new Notification({
             title: payload?.title || "sockit",
@@ -159,7 +159,7 @@ ipcMain.handle("socket-share:notify", async (_event, payload) => {
     return true;
 });
 
-ipcMain.handle("socket-share:open-path", async (_event, targetPath) => {
+ipcMain.handle("sockit:open-path", async (_event, targetPath) => {
     if (!targetPath) {
         return false;
     }
@@ -167,6 +167,6 @@ ipcMain.handle("socket-share:open-path", async (_event, targetPath) => {
     return true;
 });
 
-ipcMain.handle("socket-share:quit-app", () => {
+ipcMain.handle("sockit:quit-app", () => {
     app.quit();
 });

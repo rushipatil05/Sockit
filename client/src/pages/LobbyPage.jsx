@@ -26,12 +26,12 @@ export function LobbyPage({ peers, onCreateRoom, onJoinRoom }) {
 
     return (
         <div className="space-y-10 max-w-2xl mx-auto pt-10">
-            <Section delay={0.05}>
+            {/* <Section delay={0.05}>
                 <div className="text-center mb-10">
-                    <h2 className="text-3xl font-bold text-text-primary mb-3">SocketShare Lobby</h2>
-                    <p className="text-text-secondary">Create or join a secure room to start sharing files over TCP.</p>
+                    <h2 className="text-3xl font-bold text-text-primary mb-3">Sockit</h2>
+                    <p className="text-text-secondary">Create or join a secure room to start sharing files.</p>
                 </div>
-            </Section>
+            </Section> */}
 
             <div className="grid sm:grid-cols-2 gap-5">
                 <motion.div
