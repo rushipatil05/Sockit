@@ -1,93 +1,85 @@
 import express from "express";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { v4 as uuidv4 } from "uuid";
+import mime from "mime-types";
 
-export function createApiRouter({ peerRegistry, fileIndexService, transferService, peerNetworkService, roomService }) {
+export function createApiRouter({ peerRegistry, roomService, sharedFiles, selfPeer }) {
     const router = express.Router();
 
+    // ── Health ──────────────────────────────────────────────────────────────
     router.get("/health", (_req, res) => {
         res.json({ ok: true });
     });
 
+    // ── Peers ───────────────────────────────────────────────────────────────
     router.get("/peers", (_req, res) => {
         res.json({ peers: peerRegistry.list() });
     });
 
-    // Room Routes
+    // ── Room ────────────────────────────────────────────────────────────────
     router.get("/room/status", (_req, res) => {
         res.json({ room: roomService.getRoom() });
     });
 
     router.post("/room/create", (_req, res) => {
         const code = roomService.createRoom();
-        // Disconnect any existing peers from previous session
-        peerNetworkService.disconnectAllPeers();
         res.json({ room: { code, isHost: true } });
     });
 
-    router.post("/room/join", async (req, res, next) => {
-        try {
-            const { code } = req.body;
-            if (!code) return res.status(400).json({ error: "Room code required" });
-
-            roomService.joinRoom(code);
-            peerNetworkService.disconnectAllPeers(); // Clear old connections
-
-            // Attempt to connect to all known peers with this room code
-            const peers = peerRegistry.list();
-            for (const peer of peers) {
-                await peerNetworkService.connectToPeer(peer, code).catch(() => {});
-            }
-
-            res.json({ room: { code, isHost: false } });
-        } catch (error) {
-            next(error);
-        }
+    router.post("/room/join", (req, res) => {
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ error: "Room code required" });
+        roomService.joinRoom(code);
+        res.json({ room: { code, isHost: false } });
     });
 
-    router.post("/room/leave", async (_req, res) => {
+    router.post("/room/leave", (_req, res) => {
         roomService.leaveRoom();
-        peerNetworkService.disconnectAllPeers();
-        // Clear remote files from the index since we left the room
-        await fileIndexService.clearRemoteFiles();
+        // Remove this peer's own shared files on leave
+        for (const [fid, f] of sharedFiles.entries()) {
+            if (f.ownerPeerId === selfPeer.peerId) {
+                sharedFiles.delete(fid);
+            }
+        }
         res.json({ ok: true });
     });
 
-    router.get("/files", async (_req, res, next) => {
-        try {
-            const files = await fileIndexService.getAllFiles();
-            res.json({ files });
-        } catch (error) {
-            next(error);
-        }
+    // ── Files ───────────────────────────────────────────────────────────────
+    // GET /files — returns all currently shared files
+    router.get("/files", (_req, res) => {
+        res.json({ files: Array.from(sharedFiles.values()) });
     });
 
+    // POST /files/share — registers a local file into the shared Map
     router.post("/files/share", async (req, res, next) => {
         try {
-            const { path } = req.body;
-            if (!path) {
-                return res.status(400).json({ error: "File path is required" });
-            }
+            const { path: filePath } = req.body;
+            if (!filePath) return res.status(400).json({ error: "File path is required" });
 
-            const file = await fileIndexService.shareFile(path);
-            await peerNetworkService.broadcastIndexUpsert(file);
-            res.status(201).json({ file });
-        } catch (error) {
-            next(error);
-        }
-    });
+            const stat = await fs.stat(filePath);
+            const fileId = uuidv4();
+            const name = path.basename(filePath);
+            const mimeType = mime.lookup(name) || "application/octet-stream";
 
-    router.get("/transfers", (_req, res) => {
-        res.json({ transfers: transferService.listTransfers() });
-    });
+            const file = {
+                fileId,
+                name,
+                size: stat.size,
+                mimeType,
+                path: filePath,          // local disk path (server-only, not sent to UI)
+                ownerPeerId: selfPeer.peerId,
+                ownerName: selfPeer.peerName,
+                isLocal: true
+            };
 
-    router.post("/transfers/download", async (req, res, next) => {
-        try {
-            const { peerId, fileId, savePath } = req.body;
-            if (!peerId || !fileId) {
-                return res.status(400).json({ error: "peerId and fileId are required" });
-            }
+            sharedFiles.set(fileId, file);
 
-            const transfer = await transferService.downloadFile({ peerId, fileId, savePath });
-            res.status(202).json({ transfer });
+            // Return a safe version (no disk path) to the client
+            const safeFile = { ...file };
+            delete safeFile.path;
+
+            res.status(201).json({ file: safeFile });
         } catch (error) {
             next(error);
         }

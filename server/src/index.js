@@ -7,186 +7,224 @@ import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "./config.js";
 import { DiscoveryService } from "./services/discoveryService.js";
-import { FileIndexService } from "./services/fileIndexService.js";
 import { PeerRegistry } from "./services/peerRegistry.js";
-import { PeerNetworkService } from "./services/peerNetworkService.js";
-import { TransferService } from "./services/transferService.js";
-import { RoomService } from "./services/roomService.js";
-import { createApiRouter } from "./routes/api.js";
-import { Events, Roles } from "../../shared/peerProtocol.js";
+import { Events } from "../../shared/peerProtocol.js";
 
+// ─── Identity ────────────────────────────────────────────────────────────────
 const peerId = process.env.PEER_ID || uuidv4();
 const selfPeer = {
     peerId,
     peerName: config.peerName,
+    host: "localhost",
     socketPort: config.socketPort,
     serverPort: config.serverPort
 };
 
+// ─── Shared state ─────────────────────────────────────────────────────────────
+// All files visible on the network.
+// Map: fileId → { fileId, name, size, mimeType, ownerPeerId, ownerName,
+//                 ownerHost, ownerServerPort, isLocal, sharedAt, path? }
+const sharedFiles = new Map();
+
+// ─── HTTP + Socket.IO ─────────────────────────────────────────────────────────
 const app = express();
 const httpServer = createServer(app);
+const io = new Server(httpServer, { cors: { origin: "*" } });
 
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*"
-    }
-});
-
+// ─── Peer registry ────────────────────────────────────────────────────────────
 const peerRegistry = new PeerRegistry();
-const fileIndexService = new FileIndexService({
-    peerId: selfPeer.peerId,
-    peerName: selfPeer.peerName
-});
 
-const sharedDir = path.resolve(process.cwd(), config.sharedFilesDir);
-const downloadDir = path.resolve(process.cwd(), config.downloadDir);
-await fs.mkdir(sharedDir, { recursive: true });
-await fs.mkdir(downloadDir, { recursive: true });
-
-console.log("[startup] using in-memory file storage");
-
-// Clear this peer's stale local file index from a previous session
-await fileIndexService.clearAll();
-console.log("[startup] cleared previous session local file index");
-
-const roomService = new RoomService();
-
-const peerNetworkService = new PeerNetworkService({
-    selfPeer,
-    io,
-    fileIndexService,
-    peerRegistry,
-    onUiUpdate: emitUiSnapshot
-});
-
-const transferService = new TransferService({
-    fileIndexService,
-    peerNetworkService,
-    io,
-    downloadDir
-});
-
+// ─── UDP Discovery ────────────────────────────────────────────────────────────
 const discovery = new DiscoveryService({
     config,
     selfPeer,
     onPeerSeen: async (peer) => {
-        try {
-            peerRegistry.upsert(peer);
-            
-            // Only try connecting if we are in a room and NOT the host
-            // (If we are the host, we wait for others to join our room)
-            if (roomService.isInRoom() && !roomService.isHost) {
-                if (!peerNetworkService.getSocketByPeerId(peer.peerId)) {
-                    await peerNetworkService.connectToPeer(peer, roomService.getRoomCode()).catch(() => {});
-                }
-            }
-            emitUiSnapshot();
-        } catch (error) {
-            console.error("[discovery] onPeerSeen failed", error.message);
+        const isNew = !peerRegistry.peers.has(peer.peerId);
+        peerRegistry.upsert(peer);
+
+        // On first sight of a peer, fetch their shared file list
+        if (isNew) {
+            await fetchPeerFiles(peer);
         }
+        emitPeerState();
     },
-    onPeerLeft: async (peerLeavingId) => {
-        try {
-            peerRegistry.markOffline(peerLeavingId);
-            await fileIndexService.removeRemotePeerFiles(peerLeavingId);
-            emitUiSnapshot();
-        } catch (error) {
-            console.error("[discovery] onPeerLeft failed", error.message);
-        }
+    onPeerLeft: (peerLeavingId) => {
+        peerRegistry.markOffline(peerLeavingId);
+        removePeerFiles(peerLeavingId);
+        emitPeerState();
     }
 });
 
+// Prune stale peers (no HELLO in 15 s)
 setInterval(() => {
     const now = Date.now();
-    let pruned = false;
-    
-    // Manually check the raw map to ensure we trigger onPeerLeft for UI updates
     for (const [id, peer] of peerRegistry.peers.entries()) {
         if (now - peer.lastSeen > 15000) {
             discovery.onPeerLeft(id);
-            pruned = true;
         }
     }
-    
-    if (pruned) {
-        emitUiSnapshot();
-    }
+    emitPeerState();
 }, 5000);
 
+// ─── Auto-fetch a peer's file list via HTTP ───────────────────────────────────
+async function fetchPeerFiles(peer) {
+    try {
+        const url = `http://${peer.host}:${peer.serverPort}/api/files`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+        if (!res.ok) return;
+        const { files } = await res.json();
+        for (const f of files) {
+            sharedFiles.set(f.fileId, {
+                ...f,
+                ownerHost: peer.host,
+                ownerServerPort: peer.serverPort,
+                isLocal: false
+            });
+        }
+        emitFilesUpdated();
+    } catch {
+        // Peer may not have started yet — silent fail
+    }
+}
+
+// ─── Express REST API ─────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-app.use(
-    "/api",
-    createApiRouter({
-        peerRegistry,
-        fileIndexService,
-        transferService,
-        peerNetworkService,
-        roomService
-    })
-);
+// Health
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
+// Peers list
+app.get("/api/peers", (_req, res) => {
+    res.json({ peers: peerRegistry.list() });
+});
+
+// All visible files (own + remote)
+app.get("/api/files", (_req, res) => {
+    // Return a safe version: strip internal disk path
+    const safe = Array.from(sharedFiles.values()).map(f => {
+        const { path: _, ...rest } = f;
+        return rest;
+    });
+    res.json({ files: safe });
+});
+
+// Share a local file
+app.post("/api/files/share", async (req, res) => {
+    try {
+        const { path: filePath } = req.body;
+        if (!filePath) return res.status(400).json({ error: "File path is required" });
+
+        const stat = await fs.stat(filePath);
+        const { default: mime } = await import("mime-types");
+        const name = path.basename(filePath);
+        const fileId = uuidv4();
+
+        const file = {
+            fileId,
+            name,
+            size: stat.size,
+            mimeType: mime.lookup(name) || "application/octet-stream",
+            path: filePath,
+            ownerPeerId: selfPeer.peerId,
+            ownerName: selfPeer.peerName,
+            ownerHost: selfPeer.host,
+            ownerServerPort: selfPeer.serverPort,
+            isLocal: true,
+            sharedAt: Date.now()
+        };
+
+        sharedFiles.set(fileId, file);
+        emitFilesUpdated();
+
+        const { path: _p, ...safeFile } = file;
+        res.status(201).json({ file: safeFile });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Download a local file (other peers call this on our server)
+app.get("/api/files/:fileId/download", async (req, res) => {
+    const file = sharedFiles.get(req.params.fileId);
+    if (!file || !file.isLocal || !file.path) {
+        return res.status(404).json({ error: "File not found" });
+    }
+    try {
+        const stat = await fs.stat(file.path);
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.name)}"`);
+        res.setHeader("Content-Type", file.mimeType || "application/octet-stream");
+        res.setHeader("Content-Length", stat.size);
+
+        // Stream file in chunks
+        const fileHandle = await fs.open(file.path, "r");
+        const CHUNK = 256 * 1024;
+        let offset = 0;
+        try {
+            while (offset < stat.size) {
+                const buf = Buffer.alloc(CHUNK);
+                const { bytesRead } = await fileHandle.read(buf, 0, CHUNK, offset);
+                if (bytesRead === 0) break;
+                res.write(buf.subarray(0, bytesRead));
+                offset += bytesRead;
+            }
+            res.end();
+        } finally {
+            await fileHandle.close();
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Error handler
 app.use((error, _req, res, _next) => {
-    console.error("[api] error:", error.message || error);
-    res.status(500).json({ error: error.message || "Unexpected server error" });
+    console.error("[api] error:", error.message);
+    res.status(500).json({ error: error.message });
 });
 
-io.use((socket, next) => {
-    const role = socket.handshake.auth?.role;
-    if (role === Roles.UI) return next();
-
-    if (role === Roles.PEER) {
-        const theirRoomCode = socket.handshake.auth?.roomCode;
-        const myRoomCode = roomService.getRoomCode();
-
-        if (!myRoomCode) {
-            return next(new Error("Not in a room"));
-        }
-
-        if (theirRoomCode !== myRoomCode) {
-            return next(new Error("Invalid room code"));
-        }
-
-        return next();
-    }
-
-    next(new Error("Invalid role"));
+// ─── Socket.IO — UI only ───────────────────────────────────────────────────────
+io.on("connection", () => {
+    // Push current state to newly connected UI
+    emitPeerState();
+    emitFilesUpdated();
 });
 
-io.on("connection", (socket) => {
-    const role = socket.handshake.auth?.role;
-
-    if (role === Roles.PEER) {
-        peerNetworkService.wireIncomingPeerSocketHandlers(socket);
-    }
-
-    if (role === Roles.UI) {
-        emitUiSnapshot();
-    }
-});
-
-function emitUiSnapshot() {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function emitPeerState() {
     io.emit(Events.PEER_STATE, {
         selfPeer,
         peers: peerRegistry.list()
     });
 }
 
+function emitFilesUpdated() {
+    const safe = Array.from(sharedFiles.values()).map(f => {
+        const { path: _, ...rest } = f;
+        return rest;
+    });
+    io.emit(Events.FILES_UPDATED, { files: safe });
+}
+
+function removePeerFiles(ownerPeerId) {
+    for (const [fid, f] of sharedFiles.entries()) {
+        if (f.ownerPeerId === ownerPeerId) {
+            sharedFiles.delete(fid);
+        }
+    }
+    emitFilesUpdated();
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
 httpServer.listen(config.socketPort, () => {
-    console.log(`[socket] listening on ${config.socketPort}`);
+    console.log(`[socket] listening on port ${config.socketPort}`);
 });
 
 app.listen(config.serverPort, () => {
-    console.log(`[api] listening on ${config.serverPort}`);
+    console.log(`[api]    listening on port ${config.serverPort}  (name: ${config.peerName})`);
     discovery.start();
 });
 
-const shutdown = async () => {
-    await peerNetworkService.broadcastPeerOffline(selfPeer.peerId);
-    discovery.stop();
-    process.exit(0);
-};
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+process.on("SIGINT", () => { discovery.stop(); process.exit(0); });
+process.on("SIGTERM", () => { discovery.stop(); process.exit(0); });
