@@ -1,5 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
+
+// Get the machine's actual LAN IP (not localhost)
+function getLanIp() {
+    const interfaces = os.networkInterfaces();
+    for (const key of Object.keys(interfaces)) {
+        for (const item of interfaces[key] || []) {
+            if (item.family === "IPv4" && !item.internal) return item.address;
+        }
+    }
+    return "127.0.0.1";
+}
 import express from "express";
 import cors from "cors";
 import { createServer } from "node:http";
@@ -15,7 +27,7 @@ const peerId = process.env.PEER_ID || uuidv4();
 const selfPeer = {
     peerId,
     peerName: config.peerName,
-    host: "localhost",
+    host: getLanIp(),          // real LAN IP so other peers can reach us
     socketPort: config.socketPort,
     serverPort: config.serverPort
 };
@@ -39,13 +51,9 @@ const discovery = new DiscoveryService({
     config,
     selfPeer,
     onPeerSeen: async (peer) => {
-        const isNew = !peerRegistry.peers.has(peer.peerId);
         peerRegistry.upsert(peer);
-
-        // On first sight of a peer, fetch their shared file list
-        if (isNew) {
-            await fetchPeerFiles(peer);
-        }
+        // Re-fetch file list on every HELLO (every 3s) so new shares are picked up automatically
+        await fetchPeerFiles(peer);
         emitPeerState();
     },
     onPeerLeft: (peerLeavingId) => {
