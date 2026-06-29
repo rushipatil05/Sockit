@@ -3,10 +3,10 @@ import { useRealtimeState } from "./hooks/useRealtimeState";
 import { MainPage } from "./pages/MainPage";
 
 export default function App() {
-    const { peers, files } = useRealtimeState();
+    const { peers, files, transfers, socket } = useRealtimeState();
     return (
         <Shell>
-            <MainPage peers={peers} files={files} />
+            <MainPage peers={peers} files={files} transfers={transfers} socket={socket} />
         </Shell>
     );
 }

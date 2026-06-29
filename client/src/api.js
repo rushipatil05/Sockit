@@ -4,26 +4,8 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 });
 
-export async function fetchPeers() {
-    const { data } = await api.get("/peers");
-    return data.peers;
-}
-
-export async function fetchFiles() {
-    const { data } = await api.get("/files");
-    return data.files;
-}
-
+export async function fetchPeers()   { return (await api.get("/peers")).data.peers; }
+export async function fetchFiles()   { return (await api.get("/all-files")).data.files; }
 export async function shareFile(filePath) {
-    const { data } = await api.post("/files/share", { path: filePath });
-    return data.file;
-}
-
-// Download via our LOCAL server's proxy endpoint.
-// This avoids Electron blocking navigation to external IPs.
-// Our server fetches the file from the remote peer and streams it back.
-export function getProxyDownloadUrl(file) {
-    const remoteUrl = `http://${file.ownerHost}:${file.ownerServerPort}/api/files/${file.fileId}/download`;
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
-    return `${apiBase}/proxy-download?url=${encodeURIComponent(remoteUrl)}&name=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.mimeType || "")}`;
+    return (await api.post("/files/share", { path: filePath })).data.file;
 }
