@@ -13,6 +13,7 @@ function getLanIp() {
     return "127.0.0.1";
 }
 import express from "express";
+
 import cors from "cors";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
@@ -107,14 +108,16 @@ app.get("/api/peers", (_req, res) => {
     res.json({ peers: peerRegistry.list() });
 });
 
-// All visible files (own + remote)
+// My own shared files (for other peers to fetch)
+// Returns ONLY local files so cross-peer fetching never creates circular data
 app.get("/api/files", (_req, res) => {
-    // Return a safe version: strip internal disk path
-    const safe = Array.from(sharedFiles.values()).map(f => {
-        const { path: _, ...rest } = f;
-        return rest;
-    });
-    res.json({ files: safe });
+    const localFiles = Array.from(sharedFiles.values())
+        .filter(f => f.isLocal)
+        .map(f => {
+            const { path: _, ...rest } = f;
+            return rest;
+        });
+    res.json({ files: localFiles });
 });
 
 // Share a local file
@@ -152,7 +155,7 @@ app.post("/api/files/share", async (req, res) => {
     }
 });
 
-// Download a local file (other peers call this on our server)
+// Download a local file — called by other peers directly
 app.get("/api/files/:fileId/download", async (req, res) => {
     const file = sharedFiles.get(req.params.fileId);
     if (!file || !file.isLocal || !file.path) {
@@ -163,8 +166,8 @@ app.get("/api/files/:fileId/download", async (req, res) => {
         res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.name)}"`);
         res.setHeader("Content-Type", file.mimeType || "application/octet-stream");
         res.setHeader("Content-Length", stat.size);
+        res.setHeader("Access-Control-Allow-Origin", "*");
 
-        // Stream file in chunks
         const fileHandle = await fs.open(file.path, "r");
         const CHUNK = 256 * 1024;
         let offset = 0;
@@ -179,6 +182,43 @@ app.get("/api/files/:fileId/download", async (req, res) => {
             res.end();
         } finally {
             await fileHandle.close();
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Proxy download — our LOCAL server fetches the file from a REMOTE peer
+// and streams it back to the Electron client (avoids Electron blocking cross-origin navigations)
+app.get("/api/proxy-download", async (req, res) => {
+    const { url, name, mime: mimeType } = req.query;
+    if (!url) return res.status(400).json({ error: "url required" });
+
+    try {
+        const upstream = await fetch(decodeURIComponent(url), {
+            signal: AbortSignal.timeout(30000)
+        });
+        if (!upstream.ok) {
+            return res.status(upstream.status).json({ error: "Remote peer returned error" });
+        }
+
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(name || "file")}"`);
+        res.setHeader("Content-Type", mimeType || upstream.headers.get("content-type") || "application/octet-stream");
+        const contentLength = upstream.headers.get("content-length");
+        if (contentLength) res.setHeader("Content-Length", contentLength);
+        res.setHeader("Access-Control-Allow-Origin", "*");
+
+        // Stream response body directly to client
+        const reader = upstream.body.getReader();
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                res.write(Buffer.from(value));
+            }
+            res.end();
+        } finally {
+            reader.releaseLock();
         }
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -207,11 +247,12 @@ function emitPeerState() {
 }
 
 function emitFilesUpdated() {
-    const safe = Array.from(sharedFiles.values()).map(f => {
+    // Send ALL files (local + remote) to the UI for display
+    const all = Array.from(sharedFiles.values()).map(f => {
         const { path: _, ...rest } = f;
         return rest;
     });
-    io.emit(Events.FILES_UPDATED, { files: safe });
+    io.emit(Events.FILES_UPDATED, { files: all });
 }
 
 function removePeerFiles(ownerPeerId) {

@@ -19,9 +19,11 @@ export async function shareFile(filePath) {
     return data.file;
 }
 
-// Download URL — call directly on the owning peer's server
-export function getDownloadUrl(file) {
-    const host = file.ownerHost || "localhost";
-    const port = file.ownerServerPort || 4000;
-    return `http://${host}:${port}/api/files/${file.fileId}/download`;
+// Download via our LOCAL server's proxy endpoint.
+// This avoids Electron blocking navigation to external IPs.
+// Our server fetches the file from the remote peer and streams it back.
+export function getProxyDownloadUrl(file) {
+    const remoteUrl = `http://${file.ownerHost}:${file.ownerServerPort}/api/files/${file.fileId}/download`;
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+    return `${apiBase}/proxy-download?url=${encodeURIComponent(remoteUrl)}&name=${encodeURIComponent(file.name)}&mime=${encodeURIComponent(file.mimeType || "")}`;
 }

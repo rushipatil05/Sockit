@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("sockit", {
     pickFile: () => ipcRenderer.invoke("sockit:pick-file"),
     pickFolder: () => ipcRenderer.invoke("sockit:pick-folder"),
     pickSavePath: (defaultName) => ipcRenderer.invoke("sockit:pick-save-path", defaultName),
+    writeFile: (filePath, buffer) => ipcRenderer.invoke("sockit:write-file", filePath, buffer),
     notify: (payload) => ipcRenderer.invoke("sockit:notify", payload),
     openPath: (targetPath) => ipcRenderer.invoke("sockit:open-path", targetPath),
     quitApp: () => ipcRenderer.invoke("sockit:quit-app")

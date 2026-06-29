@@ -159,6 +159,12 @@ ipcMain.handle("sockit:notify", async (_event, payload) => {
     return true;
 });
 
+ipcMain.handle("sockit:write-file", async (_event, filePath, arrayBuffer) => {
+    const buffer = Buffer.from(arrayBuffer);
+    await require("node:fs/promises").writeFile(filePath, buffer);
+    return true;
+});
+
 ipcMain.handle("sockit:open-path", async (_event, targetPath) => {
     if (!targetPath) {
         return false;

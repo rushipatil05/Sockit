@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { shareFile, getDownloadUrl } from "../api";
+import { shareFile, getProxyDownloadUrl } from "../api";
 
 function formatBytes(bytes) {
     if (!bytes && bytes !== 0) return "-";
@@ -44,15 +44,57 @@ export function MainPage({ peers, files }) {
         await doShare(filePath);
     }
 
-    // ── Download: open direct HTTP link to owning peer's server ────────────
-    function handleDownload(file) {
-        const url = getDownloadUrl(file);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+    // ── Download: route through local proxy server ──────────────────────────
+    // The proxy endpoint (localhost:4000/api/proxy-download) fetches the file
+    // from the remote peer's server and streams it back to us.
+    // This avoids Electron blocking navigation to external IP addresses.
+    async function handleDownload(file) {
+        const proxyUrl = getProxyDownloadUrl(file);
+
+        if (window.sockit?.pickSavePath) {
+            // Electron: use native save dialog, then fetch bytes and write to disk
+            const savePath = await window.sockit.pickSavePath(file.name);
+            if (!savePath) return; // user cancelled
+
+            try {
+                const res = await fetch(proxyUrl);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    setShareMsg(`✗ Download failed: ${err.error || res.statusText}`);
+                    return;
+                }
+                const buf = await res.arrayBuffer();
+                // Write via Electron's IPC (preload exposes writeFile)
+                // Fallback: use blob URL if writeFile not available
+                if (window.sockit?.writeFile) {
+                    await window.sockit.writeFile(savePath, buf);
+                } else {
+                    // Save via anchor (works in Electron when pointing to localhost)
+                    const blob = new Blob([buf]);
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = file.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                setShareMsg(`✓ Saved: ${file.name}`);
+                setTimeout(() => setShareMsg(""), 3000);
+            } catch (err) {
+                setShareMsg(`✗ Download failed: ${err.message}`);
+                setTimeout(() => setShareMsg(""), 4000);
+            }
+        } else {
+            // Browser: anchor click to proxy URL (same-origin localhost, always works)
+            const a = document.createElement("a");
+            a.href = proxyUrl;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
     }
 
     return (
