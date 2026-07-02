@@ -1,13 +1,34 @@
 const fs = require("node:fs");
+const fsp = require("node:fs/promises");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { app, BrowserWindow, dialog, ipcMain, Notification, shell } = require("electron");
 
-// Load environment variables from .env file
-try {
-    require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
-} catch (e) {
-    console.warn("Dotenv could not be loaded, using defaults.");
+// ─── Peer-name persistence ─────────────────────────────────────────────────────
+// Stored in <userData>/sockit-config.json so the user never touches a .env file.
+function configFilePath() {
+    return path.join(app.getPath("userData"), "sockit-config.json");
+}
+
+function readConfig() {
+    try {
+        const raw = fs.readFileSync(configFilePath(), "utf8");
+        return JSON.parse(raw);
+    } catch {
+        return {};
+    }
+}
+
+async function writeConfig(data) {
+    const current = readConfig();
+    const merged  = { ...current, ...data };
+    await fsp.writeFile(configFilePath(), JSON.stringify(merged, null, 2), "utf8");
+}
+
+function writeConfigSync(data) {
+    const current = readConfig();
+    const merged  = { ...current, ...data };
+    fs.writeFileSync(configFilePath(), JSON.stringify(merged, null, 2), "utf8");
 }
 
 function resolveWindowIcon() {
@@ -34,6 +55,9 @@ function startServer() {
         : path.join(__dirname, "..", "server");
     const serverPath = path.join(serverDir, "src", "index.js");
 
+    const savedConfig = readConfig();
+    const peerName = savedConfig.peerName || process.env.PEER_NAME || process.env.COMPUTERNAME || "NodeShare-PC";
+
     const env = {
         ...process.env,
         ELECTRON_RUN_AS_NODE: "1",
@@ -43,11 +67,16 @@ function startServer() {
         UDP_BROADCAST_ADDR: process.env.UDP_BROADCAST_ADDR || "255.255.255.255",
         SERVER_PORT: process.env.SERVER_PORT || "4000",
         SOCKET_PORT: process.env.SOCKET_PORT || "5000",
-        PEER_NAME: process.env.PEER_NAME || process.env.COMPUTERNAME || "NodeShare-PC",
-        PEER_ID: process.env.PEER_ID || require("node:crypto").randomUUID(),
+        PEER_NAME: peerName,
+        PEER_ID: savedConfig.peerId || process.env.PEER_ID || require("node:crypto").randomUUID(),
         DOWNLOAD_DIR: path.join(app.getPath("downloads"), "Sockit"),
         SHARED_FILES_DIR: path.join(app.getPath("userData"), "uploads")
     };
+
+    // Persist the peerId so it stays stable across restarts
+    if (!savedConfig.peerId) {
+        writeConfigSync({ peerId: env.PEER_ID });
+    }
 
     console.log(`[main] starting server with ports: API=${env.SERVER_PORT}, SOCKET=${env.SOCKET_PORT}`);
 
@@ -175,4 +204,17 @@ ipcMain.handle("sockit:open-path", async (_event, targetPath) => {
 
 ipcMain.handle("sockit:quit-app", () => {
     app.quit();
+});
+
+// ─── Peer-name IPC ────────────────────────────────────────────────────────────
+ipcMain.handle("sockit:get-peer-name", () => {
+    const cfg = readConfig();
+    return cfg.peerName || null;   // null = name not yet set
+});
+
+ipcMain.handle("sockit:set-peer-name", async (_event, name) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) throw new Error("Name cannot be empty");
+    await writeConfig({ peerName: trimmed });
+    return trimmed;
 });
