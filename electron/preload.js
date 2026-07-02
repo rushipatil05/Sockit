@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld("sockit", {
     writeFile: (filePath, buffer) => ipcRenderer.invoke("sockit:write-file", filePath, buffer),
     notify: (payload) => ipcRenderer.invoke("sockit:notify", payload),
     openPath: (targetPath) => ipcRenderer.invoke("sockit:open-path", targetPath),
-    quitApp: () => ipcRenderer.invoke("sockit:quit-app")
+    quitApp: () => ipcRenderer.invoke("sockit:quit-app"),
+    getPeerName: () => ipcRenderer.invoke("sockit:get-peer-name"),
+    setPeerName: (name) => ipcRenderer.invoke("sockit:set-peer-name", name)
 });
